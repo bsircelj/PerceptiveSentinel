@@ -13,9 +13,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import scipy.cluster.hierarchy as sch
 from sklearn import tree
+import sys
+sys.path.insert(0, 'C:\\Users\\bsircelj\\Documents\\streamdm')
 from streamdm import HoeffdingTree, HoeffdingAdaptiveTree, NaiveBayes, LogisticRegression, MajorityClass, Perceptron, \
     Bagging
-from .classification_comparison import get_data, fit_predict, class_names
+from classification_comparison import get_data, fit_predict, class_names
 
 methods = [
     #{
@@ -109,9 +111,10 @@ methods = [
 ]
 
 if __name__ == '__main__':
-
-    # x, y = get_data('../Utilities/LargeDataProcessing/Samples/enriched_samples9797.csv')
-    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/enriched_samples10000.csv')
+    path = 'D:\\Samples\\'
+    # path = '/home/beno/Documents/IJS/Perceptive-Sentinel/'
+    # x, y = get_data(path+'/enriched_samples9797.csv')
+    x, y = get_data(path+'enriched_samples9797.csv')
 
     for method in methods:
         learner = method['ctor']()
