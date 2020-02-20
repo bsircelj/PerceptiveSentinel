@@ -116,9 +116,9 @@ def fit_predict(x, y, model, labels, name):
                           ax=ax)
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, labels=no_classes, average='macro')
-    stats = '{0:_<40} CA: {1:.4} F1: {2:.4} Train: {3:3.1f}s Predict: {4:3.1f}s'.format(name, accuracy, f1,
-                                                                                        total_time,
-                                                                                        test_time)
+    stats = '{0:_<40} CA: {1:5.4f} F1: {2:5.4f} Train: {3:4.1f}s Predict: {4:4.1f}s'.format(name, accuracy, f1,
+                                                                                      total_time,
+                                                                                      test_time)
     ax.set_title(stats)
     print(stats)
 
