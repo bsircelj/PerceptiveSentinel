@@ -92,17 +92,17 @@ class AddBaseFeatures(EOTask):
                        1)  # TODO nekako boljše to rešit division by 0
         eopatch.add_feature(FeatureType.DATA, 'ARVI', arvi)
         arvi_slope = temporal_derivative(arvi.squeeze())
-        eopatch.add_feature(FeatureType.DATA, 'ARVI_SLOPE', arvi_slope[..., np.newaxis])
+        # eopatch.add_feature(FeatureType.DATA, 'ARVI_SLOPE', arvi_slope[..., np.newaxis])
 
         evi = np.clip(2.5 * ((nir - red) / (nir + (self.c1 * red) - (self.c2 * blue) + self.L + 0.000000001)), -1, 1)
         eopatch.add_feature(FeatureType.DATA, 'EVI', evi)
         evi_slope = temporal_derivative(evi.squeeze())
-        eopatch.add_feature(FeatureType.DATA, 'EVI_SLOPE', evi_slope[..., np.newaxis])
+        # eopatch.add_feature(FeatureType.DATA, 'EVI_SLOPE', evi_slope[..., np.newaxis])
 
         ndvi = np.clip((nir - red) / (nir + red + 0.000000001), -1, 1)
         eopatch.add_feature(FeatureType.DATA, 'NDVI', ndvi)
         ndvi_slope = temporal_derivative(ndvi.squeeze())
-        eopatch.add_feature(FeatureType.DATA, 'NDVI_SLOPE', ndvi_slope[..., np.newaxis])  # ASSUMES EVENLY SPACED
+        # eopatch.add_feature(FeatureType.DATA, 'NDVI_SLOPE', ndvi_slope[..., np.newaxis])  # ASSUMES EVENLY SPACED
 
         band_a = eopatch.data['BANDS'][..., 1]
         band_b = eopatch.data['BANDS'][..., 3]
