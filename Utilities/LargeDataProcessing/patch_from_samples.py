@@ -8,10 +8,8 @@ import time
 import datetime as dt
 import random
 from temporal_features import AddStreamTemporalFeaturesTask as st
-from all_stream_features import AddBaseFeatures, allValid
+from all_stream_features import allValid
 import itertools as it
-
-import numpy as np
 
 from eolearn.core import EOTask, FeatureType
 
@@ -121,6 +119,9 @@ class AddStreamTemporalFeaturesTask():
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-statements
 
+        data = np.expand_dims(data, axis=-1)
+        data = np.expand_dims(data, axis=-1)
+
         all_dates = np.asarray([x.toordinal() for x in eopatch.timestamp])
 
         valid_data_mask = np.ones_like(data)
@@ -128,15 +129,15 @@ class AddStreamTemporalFeaturesTask():
         if data.ndim == 3:
             _, h, w = data.shape
         else:
-            raise ValueError(' feature has incorrect number of dimensions')
+            raise ValueError('{} feature has incorrect number of dimensions'.format(self.data_feature))
 
         madata = np.ma.array(data, dtype=np.float32, mask=~valid_data_mask.astype(np.bool))
 
         # Vectorized
-        data_max_val = np.ma.MaskedArray.max(madata, axis=0).filled()
-        data_min_val = np.ma.MaskedArray.min(madata, axis=0).filled()
-        data_mean_val = np.ma.MaskedArray.mean(madata, axis=0).filled()
-        data_sd_val = np.ma.MaskedArray.std(madata, axis=0).filled()
+        data_max_val = np.ma.MaskedArray.max(madata, axis=0)
+        data_min_val = np.ma.MaskedArray.min(madata, axis=0)
+        data_mean_val = np.ma.MaskedArray.mean(madata, axis=0)
+        data_sd_val = np.ma.MaskedArray.std(madata, axis=0)
 
         data_diff_max = np.empty((h, w))
         data_diff_min = np.empty((h, w))
@@ -251,104 +252,133 @@ class AddStreamTemporalFeaturesTask():
             data_neg_len[ih, iw] = neg_der_len
             data_neg_rate[ih, iw] = neg_der_rate
 
-        df = pd.DataFrame()
-        df[self.max_val_feature] = data_max_val
-        df[self.min_val_feature] = data_min_val
-        df[self.mean_val_feature] = data_mean_val
-        df[self.sd_val_feature] = data_sd_val
+        df = dict()
+        df[self.max_val_feature] = float(data_max_val.squeeze())
+        df[self.min_val_feature] = float(data_min_val.squeeze())
+        df[self.mean_val_feature] = float(data_mean_val.squeeze())
+        df[self.sd_val_feature] = float(data_sd_val.squeeze())
 
-        df[self.diff_max_feature] = data_diff_max
-        df[self.diff_min_feature] = data_diff_min
-        df[self.diff_diff_feature] = (data_diff_max - data_diff_min)
+        df[self.diff_max_feature] = float(data_diff_max.squeeze())
+        df[self.diff_min_feature] = float(data_diff_min.squeeze())
+        df[self.diff_diff_feature] = float((data_diff_max - data_diff_min).squeeze())
 
-        df[self.max_mean_feature] = data_max_mean
-        df[self.max_mean_len_feature] = data_max_mean_len
-        df[self.max_mean_surf_feature] = data_max_mean_surf
+        df[self.max_mean_feature] = float(data_max_mean.squeeze())
+        df[self.max_mean_len_feature] = float(data_max_mean_len.squeeze())
+        df[self.max_mean_surf_feature] = float(data_max_mean_surf.squeeze())
 
-        df[self.pos_len_feature] = data_pos_len
-        df[self.pos_surf_feature] = data_pos_surf
-        df[self.pos_rate_feature] = data_pos_rate
-        df[self.pos_transition_feature] = data_pos_tr
+        df[self.pos_len_feature] = float(data_pos_len.squeeze())
+        df[self.pos_surf_feature] = float(data_pos_surf.squeeze())
+        df[self.pos_rate_feature] = float(data_pos_rate.squeeze())
+        df[self.pos_transition_feature] = float(data_pos_tr.squeeze())
 
-        df[self.neg_len_feature] = data_neg_len
-        df[self.neg_surf_feature] = data_neg_surf
-        df[self.neg_rate_feature] = data_neg_rate
-        df[self.neg_transition_feature] = data_neg_tr
-
+        df[self.neg_len_feature] = float(data_neg_len.squeeze())
+        df[self.neg_surf_feature] = float(data_neg_surf.squeeze())
+        df[self.neg_rate_feature] = float(data_neg_rate.squeeze())
+        df[self.neg_transition_feature] = float(data_neg_tr.squeeze())
         return df
 
 
+class AddBaseFeatures:
+
+    def __init__(self, c1=6, c2=7.5, L=1):
+        self.c1 = c1
+        self.c2 = c2
+        self.L = L
+
+    def execute(self, nir, blue, green, red):
+        # nir = eopatch.data['BANDS'][..., [7]]
+        # blue = eopatch.data['BANDS'][..., [1]]
+        # green = eopatch.data['BANDS'][..., [2]]
+        # red = eopatch.data['BANDS'][..., [3]]
+
+        arvi = np.clip((nir - (2 * red) + blue) / (nir + (2 * red) + blue + 0.000000001), -1, 1)
+
+        evi = np.clip(2.5 * ((nir - red) / (nir + (self.c1 * red) - (self.c2 * blue) + self.L + 0.000000001)), -1, 1)
+        ndvi = np.clip((nir - red) / (nir + red + 0.000000001), -1, 1)
+
+        ndwi = np.clip((green - nir) / (green + nir + 0.000000001), -1, 1)
+
+        sipi = np.clip((nir - blue) / (nir - red + 0.000000001), 0, 2)
+
+        Lvar = 0.5
+        savi = np.clip(((nir - red) / (nir + red + Lvar + 0.000000001)) * (1 + Lvar), -1, 1)
+
+        return arvi, evi, ndvi, ndwi, sipi, savi
+
+
 if __name__ == '__main__':
-    samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
+    # samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
 
     print('start ' + str(dt.datetime.now()))
-    # samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
-    samples_path = 'D:\Samples\enriched_samples9797.csv'
-    patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
-    # patches_path = '/home/beno/Documents/test/Slovenia'
+    samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
+    # samples_path = 'D:\Samples\enriched_samples9797.csv'
+    # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
+    patches_path = '/home/beno/Documents/test/Slovenia'
 
     dataset = pd.read_csv(samples_path)
+    dataset.drop(index=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
+                        'NDVI_min_val', 'SAVI_min_val'])
     no = dataset.shape[0]
+    base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
+
+    suffix_name = ['_diff_diff', '_diff_max', '_diff_min', '_max_mean_feature', '_max_mean_len',
+                   '_max_mean_surf',
+                   '_max_val', '_mean_val', '_min_val', '_neg_len', '_neg_rate', '_neg_surf', '_neg_tran',
+                   '_pos_len', '_pos_rate', '_pos_surf', '_pos_tran', '_sd_val']
+
+    dataset['DEM'] = np.zeros(no)
+    placeholder = np.zeros(dataset.shape[0])
+    for b in base_names:
+        for s in suffix_name:
+            dataset[b + s] = placeholder
 
     color_names = [[1, 'BLUE'],
-                  [3, 'GREEN'],
-                  [3, 'RED'],
-                  [7, 'NIR']]
+                   [3, 'GREEN'],
+                   [3, 'RED'],
+                   [7, 'NIR']]
+
+    color_stream = [AddStreamTemporalFeaturesTask(data_feature=c) for _, c in color_names]
+    index_stream = [AddStreamTemporalFeaturesTask(data_feature=c) for c in base_names[0:6]]
 
     # eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 0), lazy_loading=True)
     # t, _, _, _ = eopatch.data['BANDS'].shape
-    t = 100
-    bands = np.zeros((t, 1, no, 13))
-    for x in range(no):
+    bands = np.zeros(no)
+    base_features = AddBaseFeatures()
+    for x in range(10):
+        print('{:.2%}'.format(x / no * 100))
         patch_id = dataset['patch_no'][x]
         w = dataset['x'][x]
         h = dataset['y'][x]
-        # w = np.clip(w, 0, 300)
-        # h = np.clip(h, 0, 300)
+        w = np.clip(w, 0, 300)
+        h = np.clip(h, 0, 300)
 
-        eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 0), lazy_loading=True)
+        eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 0), lazy_loading=True)  # CHANGE
+        dataset['DEM'][no] = eopatch.data_timeless['DEM'].squeeze()
         ti, _, _, _ = eopatch.data['BANDS'].shape
-        bands = np.zeros(ti)
+        # one_pixel = np.zeros((len(color_names), ti))
+        si = 0
+        for c_index, c_name in color_names:
+            one_pixel = np.zeros(ti)
+            for t in range(ti):
+                one_pixel[t] = eopatch.data['BANDS'][t][h][w][c_index]
+            pix_features = color_stream[si].execute(one_pixel, eopatch)
+            si += 1
+            for keys in pix_features:
+                dataset[keys][x] = pix_features[keys]
 
+        indices = np.zeros((ti, 6))
         for t in range(ti):
-            bands[t] = eopatch.data['BANDS'][t][h][w][]
+            nir = eopatch.data['BANDS'][t][h][w][7]
+            blue = eopatch.data['BANDS'][t][h][w][1]
+            green = eopatch.data['BANDS'][t][h][w][2]
+            red = eopatch.data['BANDS'][t][h][w][3]
+            indices[t] = base_features.execute(nir, blue, green, red)
 
-    new_patch = EOPatch()
-    new_patch.add_feature(FeatureType.DATA, 'BANDS', bands)
-    for sample in range(13):
-        one_band = bands[..., sample]
-        one_band = np.expand_dims(one_band, axis=-1)
-        new_patch.add_feature(FeatureType.DATA, 'B{}'.format(int(sample + 1)), one_band)
-
-    new_patch.timestamp = EOPatch.load('{}/eopatch_{}'.format(patches_path, 500), lazy_loading=True).timestamp  # CHANGE
-    # new_patch.add_feature(FeatureType.MASK, 'VALID_DATA', np.ones((69, 1, no, 1)))
-    new_patch = allValid('VALID_DATA').execute(new_patch)
-
-    new_patch = AddBaseFeatures().execute(new_patch)
-    features = ['NDVI', 'SAVI', 'SIPI', 'EVI', 'ARVI', 'NDWI']
-    for f in features:
-        print(f + '\n' + str(dt.datetime.now()) + '\n')
-        new_patch = st(data_feature=f).execute(new_patch)
-
-    print('BLUE\n' + str(dt.datetime.now()) + '\n')
-    new_patch = st(data_feature='B2', feature_name_prefix='BLUE', ).execute(new_patch)
-    print('GREEN\n' + str(dt.datetime.now()) + '\n')
-    new_patch = st(data_feature='B3', feature_name_prefix='GREEN').execute(new_patch)
-    print('RED\n' + str(dt.datetime.now()) + '\n')
-    new_patch = st(data_feature='B4', feature_name_prefix='RED').execute(new_patch)
-    print('NIR\n' + str(dt.datetime.now()) + '\n')
-    new_patch = st(data_feature='B8', feature_name_prefix='NIR').execute(new_patch)
-
-    print(new_patch)
-    all_features = new_patch.get_feature_list()
-    all_data_timeless = []
-    for f in all_features:
-        if type(f) is tuple:
-            all_data_timeless.append((f[0], f[1]))
-
-    for f in all_data_timeless:
-        dataset[f] = new_patch.data_timeless[f].squeeze()
+        for i in range(6):
+            pix_features = index_stream[i].execute(indices[:, i], eopatch)
+            for keys in pix_features:
+                dataset[keys][x] = pix_features[keys]
 
     filename = 'extended_samples' + str(int(random.random() * 10000))
 
-    dataset.to_csv('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/' + filename + '.csv')
+    dataset.to_csv('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/' + filename + '.csv', index=False)
