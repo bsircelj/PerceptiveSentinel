@@ -310,27 +310,30 @@ if __name__ == '__main__':
     # samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
 
     print('start ' + str(dt.datetime.now()))
-    samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv'  # CHANGE
-    # samples_path = 'D:\Samples\enriched_samples9797.csv'
-    # patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
-    patches_path = '/home/beno/Documents/test/Slovenia'
+    # samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/'  # CHANGE
+    samples_path = 'D:\\Samples\\'
+    patches_path = 'E:\\Data\\PerceptiveSentinel\\Slovenia'
+    # patches_path = '/home/beno/Documents/test/Slovenia'
 
-    dataset = pd.read_csv(samples_path)
-    dataset.drop(index=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
-                        'NDVI_min_val', 'SAVI_min_val'])
+    dataset = pd.read_csv(samples_path + 'enriched_samples9797.csv')
+    dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
+                          'NDVI_min_val', 'SAVI_min_val'], inplace=True)
     no = dataset.shape[0]
+    # no=10
     base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
 
     suffix_name = ['_diff_diff', '_diff_max', '_diff_min', '_max_mean_feature', '_max_mean_len',
                    '_max_mean_surf',
                    '_max_val', '_mean_val', '_min_val', '_neg_len', '_neg_rate', '_neg_surf', '_neg_tran',
                    '_pos_len', '_pos_rate', '_pos_surf', '_pos_tran', '_sd_val']
-
+    columns = dataset.columns
+    dataset = dataset.to_dict(orient='list')
     dataset['DEM'] = np.zeros(no)
-    placeholder = np.zeros(dataset.shape[0])
+    # columns = np.concatenate(columns,['DEM'])
+    # placeholder = np.zeros(dataset.shape[0])
     for b in base_names:
         for s in suffix_name:
-            dataset[b + s] = placeholder
+            dataset[b + s] = np.zeros(no)
 
     color_names = [[1, 'BLUE'],
                    [3, 'GREEN'],
@@ -344,16 +347,30 @@ if __name__ == '__main__':
     # t, _, _, _ = eopatch.data['BANDS'].shape
     bands = np.zeros(no)
     base_features = AddBaseFeatures()
-    for x in range(10):
-        print('{:.2%}'.format(x / no * 100))
+    update = False
+    update_per = 1
+    starttime = time.time()
+    for x in range(no):
+        percent = x / no
+        # if percent > update_per:
+        #     update = True
+        #     update_per += 0.5
+        # if update:
+        #     update = False
+        elapsed = time.time() - starttime
+        end = (no-x) * (x/(elapsed+0.01))
+        print('{0:%} time {1:10.2f} remaining {2:.2f}h'.format(percent, elapsed, end/3600))
         patch_id = dataset['patch_no'][x]
-        w = dataset['x'][x]
-        h = dataset['y'][x]
-        w = np.clip(w, 0, 300)
-        h = np.clip(h, 0, 300)
+        w = int(dataset['x'][x])
+        h = int(dataset['y'][x])
+        # w = np.clip(w, 0, 300)
+        # h = np.clip(h, 0, 300)
 
-        eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 0), lazy_loading=True)  # CHANGE
-        dataset['DEM'][no] = eopatch.data_timeless['DEM'].squeeze()
+        eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, int(patch_id)), lazy_loading=True)  # CHANGE
+        dataset['DEM'][x] = eopatch.data_timeless['DEM'][h][w].squeeze()
+        # dataset.at['DEM', x] = eopatch.data_timeless['DEM'][h][w].squeeze()
+        # dataset.set_value('DEM',x,eopatch.data_timeless['DEM'][h][w].squeeze() )
+        # print(dataset.at['DEM', x])
         ti, _, _, _ = eopatch.data['BANDS'].shape
         # one_pixel = np.zeros((len(color_names), ti))
         si = 0
@@ -380,5 +397,7 @@ if __name__ == '__main__':
                 dataset[keys][x] = pix_features[keys]
 
     filename = 'extended_samples' + str(int(random.random() * 10000))
-
-    dataset.to_csv('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/' + filename + '.csv', index=False)
+    # print(dataset)
+    dataset = pd.DataFrame.from_dict(dataset)
+    # print(dataset)
+    dataset.to_csv(samples_path + filename + '.csv', index=False)
