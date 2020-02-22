@@ -318,6 +318,7 @@ if __name__ == '__main__':
     dataset = pd.read_csv(samples_path + 'enriched_samples9797.csv')
     dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
                           'NDVI_min_val', 'SAVI_min_val'], inplace=True)
+    dataset.sort_values(by='patch_no',inplace=True)
     no = dataset.shape[0]
     # no=10
     base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
@@ -350,6 +351,8 @@ if __name__ == '__main__':
     update = False
     update_per = 1
     starttime = time.time()
+    patch_id = -1
+    eopatch = EOPatch()
     for x in range(no):
         percent = x / no
         # if percent > update_per:
@@ -358,15 +361,16 @@ if __name__ == '__main__':
         # if update:
         #     update = False
         elapsed = time.time() - starttime
-        end = (no-x) * (x/(elapsed+0.01))
-        print('{0:%} time {1:10.2f} remaining {2:.2f}h'.format(percent, elapsed, end/3600))
-        patch_id = dataset['patch_no'][x]
+        end = (no - x) * (x / (elapsed + 0.01))
+        print('{0:%} time {1:10.2f} remaining {2:.2f}h'.format(percent, elapsed, end / 3600))
+        patch_id_new = dataset['patch_no'][x]
         w = int(dataset['x'][x])
         h = int(dataset['y'][x])
         # w = np.clip(w, 0, 300)
         # h = np.clip(h, 0, 300)
-
-        eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, int(patch_id)), lazy_loading=True)  # CHANGE
+        if patch_id != patch_id_new:
+            patch_id = patch_id_new
+            eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, int(patch_id)), lazy_loading=True)  # CHANGE
         dataset['DEM'][x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.at['DEM', x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.set_value('DEM',x,eopatch.data_timeless['DEM'][h][w].squeeze() )
