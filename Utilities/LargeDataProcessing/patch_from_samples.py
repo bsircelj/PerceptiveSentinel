@@ -15,6 +15,7 @@ from eolearn.core import EOTask, FeatureType
 
 from eolearn.ml_tools.utilities import rolling_window
 
+failed_pixels = 0
 
 class AddStreamTemporalFeaturesTask():
     # pylint: disable=too-many-instance-attributes
@@ -89,8 +90,8 @@ class AddStreamTemporalFeaturesTask():
 
         fst_der = np.where(up_mask[:-1])[0]
         snd_der = np.where(down_mask[1:])[0]
-        der_ind_max = -1
-        der_int_max = -1
+        der_ind_max = 0
+        der_int_max = 0
 
         for ind, (start, end) in enumerate(zip(fst_der, snd_der)):
 
@@ -101,13 +102,14 @@ class AddStreamTemporalFeaturesTask():
             if abs(integral) >= abs(der_int_max):
                 der_int_max = integral
                 der_ind_max = ind
-
-        start_ind = fst_der[der_ind_max]
-        end_ind = snd_der[der_ind_max]
-
-        der_len = valid_dates[end_ind] - valid_dates[start_ind]
-        der_rate = (data[end_ind] - data[start_ind]) / der_len if der_len else 0
-
+        try:
+            start_ind = fst_der[der_ind_max]
+            end_ind = snd_der[der_ind_max]
+            der_len = valid_dates[end_ind] - valid_dates[start_ind]
+            der_rate = (data[end_ind] - data[start_ind]) / der_len if der_len else 0
+        except IndexError:
+            der_len = der_rate = start_ind = end_ind = 0
+            print("FAIL")
         return der_int_max, der_len, der_rate, (start_ind, end_ind)
 
     def execute(self, data, eopatch):
@@ -318,7 +320,7 @@ if __name__ == '__main__':
     dataset = pd.read_csv(samples_path + 'enriched_samples9797.csv')
     dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
                           'NDVI_min_val', 'SAVI_min_val'], inplace=True)
-    dataset.sort_values(by='patch_no',inplace=True)
+    dataset.sort_values(by='patch_no', inplace=True)
     no = dataset.shape[0]
     # no=10
     base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
@@ -353,16 +355,17 @@ if __name__ == '__main__':
     starttime = time.time()
     patch_id = -1
     eopatch = EOPatch()
+
     for x in range(no):
-        percent = x / no
+        # percent = x / no
         # if percent > update_per:
         #     update = True
         #     update_per += 0.5
         # if update:
         #     update = False
-        elapsed = time.time() - starttime
-        end = (no - x) * (x / (elapsed + 0.01))
-        print('{0:%} time {1:10.2f} remaining {2:.2f}h'.format(percent, elapsed, end / 3600))
+        # elapsed = time.time() - starttime
+        # end = (no - x) * (elapsed / (x + 0.001))
+        # print('{0:%} time {1:10.2f} remaining {2:.2f}h'.format(percent, elapsed, end / 3600))
         patch_id_new = dataset['patch_no'][x]
         w = int(dataset['x'][x])
         h = int(dataset['y'][x])
@@ -382,7 +385,12 @@ if __name__ == '__main__':
             one_pixel = np.zeros(ti)
             for t in range(ti):
                 one_pixel[t] = eopatch.data['BANDS'][t][h][w][c_index]
-            pix_features = color_stream[si].execute(one_pixel, eopatch)
+            # print(one_pixel)
+            try:
+                pix_features = color_stream[si].execute(one_pixel, eopatch)
+            except:
+                failed_pixels += 1
+                continue
             si += 1
             for keys in pix_features:
                 dataset[keys][x] = pix_features[keys]
@@ -399,7 +407,7 @@ if __name__ == '__main__':
             pix_features = index_stream[i].execute(indices[:, i], eopatch)
             for keys in pix_features:
                 dataset[keys][x] = pix_features[keys]
-
+    # print("Done. only {} failed".format(failed_pixels))
     filename = 'extended_samples' + str(int(random.random() * 10000))
     # print(dataset)
     dataset = pd.DataFrame.from_dict(dataset)
