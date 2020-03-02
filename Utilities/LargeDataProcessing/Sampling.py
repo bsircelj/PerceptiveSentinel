@@ -135,7 +135,7 @@ if __name__ == '__main__':
                                          no_samples=no_samples,
                                          class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
                                          mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                                         features=all_data_timeless,
+                                         features=[],
                                          samples_per_class=20000,
                                          weak_classes=[11, 3, 2, 18, 15, 1, 12],
                                          debug=True,

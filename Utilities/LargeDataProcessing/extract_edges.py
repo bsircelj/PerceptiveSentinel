@@ -141,11 +141,44 @@ if __name__ == '__main__':
              }
         ],
         structuring_element=structuring_2d,
-        excluded_features=[((FeatureType.DATA, 'NDVI'), 0.3)],
+        excluded_features=[],
         dilation_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
         erosion_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
         output_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
         adjust_function=lambda x: cv2.GaussianBlur(x, (9, 9), 5),
+        adjust_threshold=0.05,
+        yearly_low_threshold=0.8)
+
+    pretty_za_clanek = ExtractEdgesTask(
+        edge_features=[
+            {"FeatureType": FeatureType.DATA,
+             "FeatureName": 'EVI',
+             "CannyThresholds": (40, 80),
+             "BlurArguments": ((5, 5), 2)
+             },
+
+            {"FeatureType": FeatureType.DATA,
+             "FeatureName": 'ARVI',
+             "CannyThresholds": (40, 80),
+             "BlurArguments": ((5, 5), 2)
+             },
+            {"FeatureType": FeatureType.DATA,
+             "FeatureName": 'NDVI',
+             "CannyThresholds": (40, 100),
+             "BlurArguments": ((5, 5), 2)
+             },
+            {"FeatureType": FeatureType.DATA,
+             "FeatureName": 'GRAY',
+             "CannyThresholds": (5, 40),
+             "BlurArguments": ((3, 3), 2)
+             }
+        ],
+        structuring_element=structuring_2d,
+        excluded_features=[((FeatureType.DATA, 'NDVI'), 0)],
+        dilation_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1)),
+        erosion_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (1, 1)),
+        output_feature=(FeatureType.MASK_TIMELESS, 'EDGES_PRETTY'),
+        adjust_function=lambda x: cv2.GaussianBlur(x, (7, 7), 4),
         adjust_threshold=0.05,
         yearly_low_threshold=0.8)
 
@@ -175,7 +208,7 @@ if __name__ == '__main__':
     # path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
-    load = LoadFromDisk(patch_location, lazy_loading=True)
+    load = LoadFromDisk(patch_location)
 
     save_path_location = path + '/Slovenia/'
     if not os.path.isdir(save_path_location):
@@ -189,6 +222,11 @@ if __name__ == '__main__':
             save: {'eopatch_folder': 'eopatch_{}'.format(id)}
         })
 
+    execution_args={
+        load: {'eopatch_folder': 'eopatch_{}'.format(2)},
+        save: {'eopatch_folder': 'eopatch_{}'.format(2)}
+    }
+
     workflow = LinearWorkflow(
         load,
         Preprocess(),
@@ -196,8 +234,9 @@ if __name__ == '__main__':
         save
     )
 
+    # workflow.execute(execution_args)
+
     executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
-    # here you choose how many processes/threads you will run, workers=none is max of processors
-    executor.run(workers=None, multiprocess=False)
+    executor.run(workers=2, multiprocess=False)
 
     # display()
