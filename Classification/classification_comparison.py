@@ -22,14 +22,26 @@ crop_names = {0: 'Beans', 1: 'Beets', 2: 'Buckwheat', 3: 'Fallow land', 4: 'Gras
               18: 'Sun flower', 19: 'Vegetables', 20: 'Vineyards', 21: 'Winter cereals', 22: 'Winter rape'}
 class_names = ['Not Farmland'] + [crop_names[x] for x in range(23)]
 
-features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
-            (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
-            (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
-            (FeatureType.DATA_TIMELESS, 'NDVI_sd_val'),
-            (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
-            (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
-            ]
+# features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+#             (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
+#             (FeatureType.DATA_TIMELESS, 'NDVI_min_val'),
+#             (FeatureType.DATA_TIMELESS, 'NDVI_sd_val'),
+#             (FeatureType.DATA_TIMELESS, 'SAVI_min_val'),
+#             (FeatureType.DATA_TIMELESS, 'SIPI_mean_val')
+#             ]
 
+features1900 = [(FeatureType.DATA_TIMELESS, 'DEM'),
+                (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+                (FeatureType.DATA_TIMELESS, 'BLUE_max_mean_surf'),
+                (FeatureType.DATA_TIMELESS, 'BLUE_mean_val'),
+                (FeatureType.DATA_TIMELESS, 'BLUE_neg_surf')
+                ]
+features400 = [(FeatureType.DATA_TIMELESS, 'DEM'),
+                (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+                (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_surf'),
+                (FeatureType.DATA_TIMELESS, 'BLUE_mean_val'),
+                (FeatureType.DATA_TIMELESS, 'GREEN_pos_surf')
+                ]
 
 def get_data(samples_path):
     dataset = pd.read_csv(samples_path)
@@ -39,7 +51,8 @@ def get_data(samples_path):
     # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
     y = [a + 1 for a in y]
 
-    feature_names = [t[1] for t in features]
+    feature_names = [t[1] for t in features400]
+    # print(dataset[feature_names])
     x = dataset[feature_names].to_numpy()
 
     # dataset = sample_patches(path=path,
@@ -55,7 +68,7 @@ def get_data(samples_path):
 
 
 def save_figure(plt, file_name):
-    plt.savefig(f'Results/{file_name}', dpi=300, bbox_inches='tight')
+    plt.savefig(f'Results/Gen/{file_name}', dpi=300, bbox_inches='tight')
 
 
 def cluster_df(df, k=0.5):
@@ -93,9 +106,11 @@ def form_clusters(y_test, y_pred, all_y, k=0.6):
 
 def fit_predict(x, y, model, labels, name):
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
-    sc = StandardScaler()
-    x_train = sc.fit_transform(x_train)
-    x_test = sc.transform(x_test)
+    # sc = StandardScaler()
+    # x_train = sc.transform(x_train)
+    # x_test = sc.transform(x_test)
+    # y_train = sc.transform(y_train)
+    # y_test = sc.transform(y_test)
 
     start_time = time.time()
     model.fit(x_train, y_train)
@@ -117,8 +132,8 @@ def fit_predict(x, y, model, labels, name):
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, labels=no_classes, average='macro')
     stats = '{0:_<40} CA: {1:5.4f} F1: {2:5.4f} Train: {3:4.1f}s Predict: {4:4.1f}s'.format(name, accuracy, f1,
-                                                                                      total_time,
-                                                                                      test_time)
+                                                                                            total_time,
+                                                                                            test_time)
     ax.set_title(stats)
     print(stats)
 
@@ -127,35 +142,35 @@ def fit_predict(x, y, model, labels, name):
 
 
 if __name__ == '__main__':
-    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples10000.csv')
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples0000.csv')
 
     # LightGBM
     lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
     y_pred, y_test = fit_predict(x, y, lgb_model, class_names, 'LGBM')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
-    lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
-    fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered')
+    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
+    # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
+    # fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered')
 
     # DecisionTree
     clf = tree.DecisionTreeClassifier()
     y_pred, y_test = fit_predict(x, y, clf, class_names, 'decision tree')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree')
+    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree')
 
     # Random Forest
     rf_model = RandomForestClassifier()
     y_pred, y_test = fit_predict(x, y, rf_model, class_names, 'random forest')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered RF')
+    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered RF')
 
     # Logistic Regression
     lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
     y_pred, y_test = fit_predict(x, y, lr_model, class_names, 'logistic regression')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression')
+    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression')
 
     # MLP
-    clf = MLPClassifier(solver='adam', alpha=1e-5, hidden_layer_sizes=(100, 100), random_state=1, max_iter=500)
+    clf = MLPClassifier(solver='adam', alpha=1e-5, hidden_layer_sizes=(20, 10, 10), random_state=1, max_iter=500)
     y_pred, y_test = fit_predict(x, y, clf, class_names, 'MLP')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    fit_predict(x, clustered_y, clf, class_names_new, 'clustered MLP')
+    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # fit_predict(x, clustered_y, clf, class_names_new, 'clustered MLP')
