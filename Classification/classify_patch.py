@@ -94,9 +94,10 @@ results_path = '/home/beno/Documents/test/Results/'
 
 
 def save_figure(plt, file_name):
-    plt.savefig(f'/home/beno/Documents/IJS/Perceptive-Sentinel/Images/Features/{file_name}', dpi=300,
+    # plt.savefig(f'/home/beno/Documents/IJS/Perceptive-Sentinel/Images/Features/{file_name}', dpi=300,
+    #             bbox_inches='tight')
+    plt.savefig(f'D:/users/Beno/{file_name}', dpi=300,
                 bbox_inches='tight')
-
 
 def get_data(samples_path):
     dataset = pd.read_csv(samples_path)
@@ -160,8 +161,8 @@ def create_model(model=None, name='Random forest', k=None):
     if model is None:
         model = tree.DecisionTreeClassifier()
     global class_names
+    # x_samples, y_samples = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples1111.csv')
     x_samples, y_samples = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples1111.csv')
-    # x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples10000.csv')
 
     renaming = None
     clustered_y = y_samples
@@ -255,7 +256,8 @@ if __name__ == '__main__':
     # save_model(model, name)
     model = load_model(name)
 
-    patches_path = '/home/beno/Documents/test/Slovenia'
+    # patches_path = '/home/beno/Documents/test/Slovenia'
+    patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
     patch_id = 2
 
     x_patch, y_test, patch_shape = read_patch(patches_path, patch_id, features400)
