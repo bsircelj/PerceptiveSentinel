@@ -15,6 +15,7 @@ from eolearn.core import EOTask, EOPatch, LinearWorkflow, EOWorkflow, Dependency
 import os
 from eolearn.features import LinearInterpolation, SimpleFilterTask
 
+from eolearn.io import SentinelHubDemTask
 
 class SentinelHubValidData:
     """
@@ -147,13 +148,30 @@ class ValidDataFractionPredicate:
         return coverage > self.threshold
 
 
+class ModifyLPISTask(EOTask):
+
+    def __init__(self, feature_name):
+        self.feature_name = feature_name
+
+    def execute(self, eopatch):
+        all_features = eopatch.get_feature_list()
+        if (FeatureType.MASK_TIMELESS, self.feature_name) in all_features:
+            lpis = eopatch.mask_timeless[self.feature_name].squeee()
+            lpis = lpis + 1
+            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, lpis)
+        else:
+            t, w, h, _ = eopatch.data['BANDS'].shape
+            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, np.zeros((w, h)))
+        return eopatch
+
+
 if __name__ == '__main__':
 
     # no_patches = 1085
-    no_patches = 1
+    no_patches = 1061
 
-    path = '/home/beno/Documents/test'
-    # path = 'E:/Data/PerceptiveSentinel'
+    # path = '/home/beno/Documents/test'
+    path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
     load = LoadFromDisk(patch_location)
@@ -164,11 +182,11 @@ if __name__ == '__main__':
 
     save = SaveToDisk(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-    valid_data_predicate = ValidDataFractionPredicate(0.8)
-    filter_task = SimpleFilterTask((FeatureType.MASK, 'IS_VALID'), valid_data_predicate)
+    # valid_data_predicate = ValidDataFractionPredicate(0.8)
+    # filter_task = SimpleFilterTask((FeatureType.MASK, 'IS_VALID'), valid_data_predicate)
     # addStreamNDVI = AddStreamTemporalFeaturesTask(data_feature='NDVI')
     # addStreamSAVI = AddStreamTemporalFeaturesTask(data_feature='SAVI')
-    addStreamEVI = AddStreamTemporalFeaturesTask(data_feature='EVI')
+    # addStreamEVI = AddStreamTemporalFeaturesTask(data_feature='EVI')
     # addStreamARVI = AddStreamTemporalFeaturesTask(data_feature='ARVI')
     # addStreamSIPI = AddStreamTemporalFeaturesTask(data_feature='SIPI')
     # addStreamNDWI = AddStreamTemporalFeaturesTask(data_feature='NDWI')
@@ -200,17 +218,17 @@ if __name__ == '__main__':
             raster_shape=rshape,
             raster_dtype=np.uint8))
     '''
-    # execution_args = []
-    # for id in (0, 3):
-    #     execution_args.append({
-    #         load: {'eopatch_folder': 'eopatch_{}'.format(id)},
-    #         save: {'eopatch_folder': 'eopatch_{}'.format(id)}
-    #     })
-    id = 2
-    execution_args = {
-        load: {'eopatch_folder': 'eopatch_{}'.format(id)},
-        save: {'eopatch_folder': 'eopatch_{}'.format(id)}
-    }
+    execution_args = []
+    for id in range(no_patches):
+        execution_args.append({
+            load: {'eopatch_folder': 'eopatch_{}'.format(id)},
+            save: {'eopatch_folder': 'eopatch_{}'.format(id)}
+        })
+    # id = 2
+    # execution_args = {
+    #     load: {'eopatch_folder': 'eopatch_{}'.format(id)},
+    #     save: {'eopatch_folder': 'eopatch_{}'.format(id)}
+    # }
 
     addStreamGREEN = AddStreamTemporalFeaturesTask(data_feature='GREEN')
     addStreamBLUE = AddStreamTemporalFeaturesTask(data_feature='BLUE')
@@ -228,6 +246,9 @@ if __name__ == '__main__':
     add_sh_valmask = AddValidDataMaskTask(SentinelHubValidData(),
                                           'IS_VALID'  # name of output mask
                                           )
+    lpis_task = ModifyLPISTask('LPIS_2017')
+    size_big = (500, 505)
+    dem = SentinelHubDemTask((FeatureType.DATA_TIMELESS, 'DEM'), size=size_big)
 
     workflow = LinearWorkflow(
         load,
@@ -236,7 +257,8 @@ if __name__ == '__main__':
         # add_sh_valmask,
         # filter_task,
         # linear_interp,
-        # AddBaseFeatures(),
+        AddBaseFeatures(),
+        dem,
         # printPatch('base added '),
         # addStreamNDVI,
         # addStreamSAVI,
@@ -247,17 +269,18 @@ if __name__ == '__main__':
         # allValid('IS_VALID'),
         # *land_cover_task_array,
         # printPatch(),
+        lpis_task,
         addStreamGREEN,
         addStreamBLUE,
         save
     )
 
-    workflow.execute(execution_args)
+    # workflow.execute(execution_args)
 
     # start_time = time.time()
     # runs workflow for each set of arguments in list
-    # executor = EOExecutor(workflow, execution_args, save_logs=True)
-    # executor.run(workers=None, multiprocess=True)
+    executor = EOExecutor(workflow, execution_args, save_logs=True)
+    executor.run(workers=4, multiprocess=True)
 
     # file = open('stream_timing.txt', 'a')
     # running = str(dt.datetime.now()) + ' Running time: {}\n'.format(time.time() - start_time)
