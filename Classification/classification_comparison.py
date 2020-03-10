@@ -20,7 +20,7 @@ crop_names = {0: 'Beans', 1: 'Beets', 2: 'Buckwheat', 3: 'Fallow land', 4: 'Gras
               11: 'Peas',
               12: 'Poppy', 13: 'Potatoes', 14: 'Pumpkins', 15: 'Soft fruits', 16: 'Soybean', 17: 'Summer cereals',
               18: 'Sun flower', 19: 'Vegetables', 20: 'Vineyards', 21: 'Winter cereals', 22: 'Winter rape'}
-class_names = ['Not Farmland'] + [crop_names[x] for x in range(23)]
+class_names = ['Not_Farmland'] + [crop_names[x].replace(' ', '_') for x in range(23)]
 
 # features = [(FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
 #             (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
@@ -50,10 +50,9 @@ def get_data(samples_path, feature_names):
     # dataset.drop(columns=['NDVI_min_val', 'SAVI_min_val', 'INCLINATION'])
     y = dataset['LPIS_2017'].to_numpy()
     # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
-    y = [a + 1 for a in y]
+    y = [int(a + 1) for a in y]
 
-    # feature_names = [t[1] for t in features400]
-    # print(dataset[feature_names])
+    feature_names = [t[1].replace(' ', '_') for t in feature_names]
     x = dataset[feature_names].to_numpy()
 
     # dataset = sample_patches(path=path,
@@ -138,7 +137,48 @@ def fit_predict(x, y, model, labels, name):
     print(stats)
 
     save_figure(plt, name + '.png')
-    return y_pred, y_test
+    return y_pred, y_test, x_test
+
+
+def create_arff(model, name,feature_names):
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv', feature_names)
+    # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
+    y_pred, y_test, x_test = fit_predict(x, y, model, class_names, 'LGBM')
+    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
+    lgb_model1 = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
+    fit_predict(x, clustered_y, lgb_model1, class_names_new, 'LGBM_partially_aggerated')
+    for c in enumerate(class_names_new):
+        print('% {0:2}: {1}', format(c))
+
+    clustered_y2, class_names_new2 = form_clusters(y_pred, y_test, y, k=0.6)
+    lgb_model2 = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
+    fit_predict(x, clustered_y2, lgb_model2, class_names_new2, 'LGBM_fully_aggregated')
+    for c in enumerate(class_names_new2):
+        print('% {0:2}: {1}', format(c))
+
+    all_class_names = [class_names[int(rename)] for rename in y]
+    # other = [all_class_names, y, clustered_y, clustered_y2]
+
+    x_all = np.concatenate((x,
+                            np.array(all_class_names)[:, np.newaxis],
+                            np.array(y)[:, np.newaxis],
+                            np.array(clustered_y)[:, np.newaxis],
+                            np.array(clustered_y2)[:, np.newaxis]),
+                           axis=1)
+    acc = ''
+    for c in class_names:
+        acc = acc + c + ','
+    print(acc)
+    df = pd.DataFrame(x_all)
+
+    file = open('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/{}.csv'.format(name), 'a')
+    columns = np.concatenate((feature_names, ['class_name', 'raw', 'partially_aggregated', 'fully_aggregated']), axis=0)
+
+    for c in columns:
+        file.write('@ATTRIBUTE {:25} NUMERIC\n'.format(c))
+
+    df.to_csv(file, header=False, index=False)
+    file.close()
 
 
 k_best = ['INCLINATION', 'DEM', 'ARVI_max_mean_surf', 'ARVI_mean_val', 'NDVI_mean_val']
