@@ -19,8 +19,8 @@ class AddGradientTask(EOTask):
 
 
 if __name__ == '__main__':
-    # path = 'E:/Data/PerceptiveSentinel'
-    path = '/home/beno/Documents/test/Slovenia/'
+    path = 'E:/Data/PerceptiveSentinel/Slovenia/'
+    # path = '/home/beno/Documents/test/Slovenia/'
     size_small = (333, 337)
     size_big = (500, 505)
 
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         os.makedirs(save_path_location)
     save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-    dem = SentinelHubDemTask((FeatureType.DATA_TIMELESS, 'DEM'), size=size_small)
+    dem = SentinelHubDemTask((FeatureType.DATA_TIMELESS, 'DEM'), size=size_big)
     grad = AddGradientTask((FeatureType.DATA_TIMELESS, 'DEM'), (FeatureType.DATA_TIMELESS, 'INCLINATION'))
 
     workflow = LinearWorkflow(
@@ -51,8 +51,8 @@ if __name__ == '__main__':
         })
 
     execution_args = {
-            load: {'eopatch_folder': 'eopatch_3'},
-            save: {'eopatch_folder': 'eopatch_3'},
+            load: {'eopatch_folder': 'eopatch_1000'},
+            save: {'eopatch_folder': 'eopatch_1000'},
         }
     # executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
     # executor.run()
