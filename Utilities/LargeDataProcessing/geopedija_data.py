@@ -210,19 +210,20 @@ def load_LPIS(country, year, path, no_patches):
 
     execution_args = []
     for i in range(no_patches):
+
         execution_args.append({
-            load: {'eopatch_folder': 'eopatch_{}'.format(i)},
-            save: {'eopatch_folder': 'eopatch_{}'.format(i)}
+            load: {'eopatch_folder': 'eopatch_{}'.format(i+3)},
+            save: {'eopatch_folder': 'eopatch_{}'.format(i+3)}
         })
     ##### here you choose how many processes/threads you will run, workers=none is max of processors
 
     executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
     # executor.run(workers=None, multiprocess=True)
-    executor.run()
+    # executor.run()
 
-    # workflow.execute({load: {'eopatch_folder': 'eopatch_0'},
-    #                   save: {'eopatch_folder': 'eopatch_0'}
-    #                   })
+    workflow.execute({load: {'eopatch_folder': 'eopatch_1'},
+                      save: {'eopatch_folder': 'eopatch_1'}
+                      })
 
     # executor = EOExecutor(workflow, [{load: {'eopatch_folder': 'eopatch_0'},
     #                                  save: {'eopatch_folder': 'eopatch_0'}
@@ -234,7 +235,7 @@ if __name__ == '__main__':
     # path = 'E:/Data/PerceptiveSentinel'
     path = '/home/beno/Documents/test'
     # no_patches = 1
-    no_patches = 1
+    no_patches = 2
     country = 'Slovenia'
     # country = 'Austria'
     year = 2017
