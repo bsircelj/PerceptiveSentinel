@@ -37,13 +37,14 @@ features1900 = [(FeatureType.DATA_TIMELESS, 'DEM'),
                 (FeatureType.DATA_TIMELESS, 'BLUE_neg_surf')
                 ]
 features400 = [(FeatureType.DATA_TIMELESS, 'DEM'),
-                (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
-                (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_surf'),
-                (FeatureType.DATA_TIMELESS, 'BLUE_mean_val'),
-                (FeatureType.DATA_TIMELESS, 'GREEN_pos_surf')
-                ]
+               (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_len'),
+               (FeatureType.DATA_TIMELESS, 'ARVI_max_mean_surf'),
+               (FeatureType.DATA_TIMELESS, 'BLUE_mean_val'),
+               (FeatureType.DATA_TIMELESS, 'GREEN_pos_surf')
+               ]
 
-def get_data(samples_path):
+
+def get_data(samples_path, feature_names):
     dataset = pd.read_csv(samples_path)
     # dataset.drop(columns=['INCLINATION'])
     # dataset.drop(columns=['NDVI_min_val', 'SAVI_min_val', 'INCLINATION'])
@@ -51,7 +52,7 @@ def get_data(samples_path):
     # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
     y = [a + 1 for a in y]
 
-    feature_names = [t[1] for t in features400]
+    # feature_names = [t[1] for t in features400]
     # print(dataset[feature_names])
     x = dataset[feature_names].to_numpy()
 
@@ -68,7 +69,8 @@ def get_data(samples_path):
 
 
 def save_figure(plt, file_name):
-    plt.savefig(f'Results/Gen/{file_name}', dpi=300, bbox_inches='tight')
+    plt.savefig(f'/home/beno/Documents/IJS/Perceptive-Sentinel/Images/Comparison/{file_name}', dpi=300,
+                bbox_inches='tight')
 
 
 def cluster_df(df, k=0.5):
@@ -131,46 +133,79 @@ def fit_predict(x, y, model, labels, name):
                           ax=ax)
     accuracy = accuracy_score(y_test, y_pred)
     f1 = f1_score(y_test, y_pred, labels=no_classes, average='macro')
-    stats = '{0:_<40} CA: {1:5.4f} F1: {2:5.4f} Train: {3:4.1f}s Predict: {4:4.1f}s'.format(name, accuracy, f1,
-                                                                                            total_time,
-                                                                                            test_time)
-    ax.set_title(stats)
+    stats = '{0:_<20} CA: {1:5.3f} F1: {2:5.3f}'.format(name, accuracy, f1)
+    # ax.set_title(stats)
     print(stats)
 
     save_figure(plt, name + '.png')
     return y_pred, y_test
 
 
+k_best = ['INCLINATION', 'DEM', 'ARVI_max_mean_surf', 'ARVI_mean_val', 'NDVI_mean_val']
+relief_f = ['DEM', 'BLUE_pos_len', 'GREEN_neg_len', 'RED_neg_len', 'BLUE_neg_len']
+fastener_2k = ['DEM', 'ARVI_max_mean_len', 'BLUE_max_mean_surf', 'BLUE_mean_val', 'BLUE_neg_surf']
+poss_2k = ['INCLINATION', 'DEM', 'ARVI_max_mean_surf', 'BLUE_neg_surf', 'NIR_pos_len']
+fastener_600 = ['DEM', 'ARVI_max_mean_len', 'ARVI_max_mean_surf', 'BLUE_mean_val', 'GREEN_pos_surf']
+poss_600 = ['INCLINATION', 'NDVI_max_mean_len', 'GREEN_mean_val', 'GREEN_neg_surf', 'RED_pos_len']
+
 if __name__ == '__main__':
-    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples0000.csv')
-
-    # LightGBM
-    lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
-    y_pred, y_test = fit_predict(x, y, lgb_model, class_names, 'LGBM')
-    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
-    # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
-    # fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered')
-
-    # DecisionTree
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', k_best)
     clf = tree.DecisionTreeClassifier()
-    y_pred, y_test = fit_predict(x, y, clf, class_names, 'decision tree')
-    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    # fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree')
+    fit_predict(x, y, clf, class_names, 'SelectKBest')
 
-    # Random Forest
-    rf_model = RandomForestClassifier()
-    y_pred, y_test = fit_predict(x, y, rf_model, class_names, 'random forest')
-    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    # fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered RF')
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', relief_f)
+    clf = tree.DecisionTreeClassifier()
+    fit_predict(x, y, clf, class_names, 'reliefF')
 
-    # Logistic Regression
-    lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
-    y_pred, y_test = fit_predict(x, y, lr_model, class_names, 'logistic regression')
-    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    # fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression')
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', fastener_2k)
+    clf = tree.DecisionTreeClassifier()
+    fit_predict(x, y, clf, class_names, 'FASTENER_2k')
 
-    # MLP
-    clf = MLPClassifier(solver='adam', alpha=1e-5, hidden_layer_sizes=(20, 10, 10), random_state=1, max_iter=500)
-    y_pred, y_test = fit_predict(x, y, clf, class_names, 'MLP')
-    # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
-    # fit_predict(x, clustered_y, clf, class_names_new, 'clustered MLP')
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', poss_2k)
+    clf = tree.DecisionTreeClassifier()
+    fit_predict(x, y, clf, class_names, 'POSS_2k')
+
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', fastener_600)
+    clf = tree.DecisionTreeClassifier()
+    fit_predict(x, y, clf, class_names, 'FASTENER_600')
+
+    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/genetic_samples2.csv', poss_600)
+    clf = tree.DecisionTreeClassifier()
+    fit_predict(x, y, clf, class_names, 'POSS_600')
+
+    # print(x)
+    # print(x[k_best])
+    # DecisionTree
+    # clf = tree.DecisionTreeClassifier()
+    # fit_predict(x, y, clf, class_names, 'decision tree')
+
+    # # LightGBM
+    # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
+    # y_pred, y_test = fit_predict(x, y, lgb_model, class_names, 'LGBM')
+    # # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
+    # # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
+    # # fit_predict(x, clustered_y, lgb_model, class_names_new, 'LGBM clustered')
+    #
+    # # DecisionTree
+    # clf = tree.DecisionTreeClassifier()
+    # y_pred, y_test = fit_predict(x, y, clf, class_names, 'decision tree')
+    # # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # # fit_predict(x, clustered_y, clf, class_names_new, 'clustered tree')
+    #
+    # # Random Forest
+    # rf_model = RandomForestClassifier()
+    # y_pred, y_test = fit_predict(x, y, rf_model, class_names, 'random forest')
+    # # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # # fit_predict(x, clustered_y, rf_model, class_names_new, 'clustered RF')
+    #
+    # # Logistic Regression
+    # lr_model = LogisticRegression(solver='lbfgs', multi_class='multinomial', max_iter=200)
+    # y_pred, y_test = fit_predict(x, y, lr_model, class_names, 'logistic regression')
+    # # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # # fit_predict(x, clustered_y, lr_model, class_names_new, 'clustered logistic regression')
+    #
+    # # MLP
+    # clf = MLPClassifier(solver='adam', alpha=1e-5, hidden_layer_sizes=(20, 10, 10), random_state=1, max_iter=500)
+    # y_pred, y_test = fit_predict(x, y, clf, class_names, 'MLP')
+    # # clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.6)
+    # # fit_predict(x, clustered_y, clf, class_names_new, 'clustered MLP')

@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from Utilities.LargeDataProcessing.Sampling import sample_patches
-from eolearn.core import FeatureType, EOPatch, OverwritePermission
+from eolearn.core import FeatureType, EOPatch, OverwritePermission, EOTask
 import lightgbm as lgb
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, plot_confusion_matrix
 from sklearn.linear_model import LogisticRegression
@@ -98,6 +98,7 @@ def save_figure(plt, file_name):
     #             bbox_inches='tight')
     plt.savefig(f'D:/users/Beno/{file_name}', dpi=300,
                 bbox_inches='tight')
+
 
 def get_data(samples_path):
     dataset = pd.read_csv(samples_path)
@@ -244,6 +245,13 @@ def read_patch(patches_path, patch_id, features):
     # mask = mask.astype(int)
     # print(mask)
     # img = pred * mask
+
+
+class ClassifyPatchTask(EOTask):
+
+    def __init__(self, model, feature_name):
+        self.model = model
+        self.feature_name = feature_name
 
 
 if __name__ == '__main__':
