@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 
+crop_names = {0: 'Not Farmland', 1: 'Beans', 2: 'Beets', 3: 'Buckwheat', 4: 'Fallow land', 5: 'Grass', 6: 'Hop',
+              7: 'Legumes or grass', 8: 'Maize', 9: 'Meadows', 10: 'Orchards', 11: 'Other', 12: 'Peas', 13: 'Poppy',
+              14: 'Potatoes', 15: 'Pumpkins', 16: 'Soft fruits', 17: 'Soybean', 18: 'Summer cereals', 19: 'Sun flower',
+              20: 'Vegetables', 21: 'Vineyards', 22: 'Winter cereals', 23: 'Winter rape'}
 
 all_features = ['INCLINATION', 'DEM', 'ARVI_diff_diff', 'ARVI_diff_max', 'ARVI_diff_min'
     , 'ARVI_max_mean_feature', 'ARVI_max_mean_len', 'ARVI_max_mean_surf'
@@ -48,45 +52,61 @@ all_features = ['INCLINATION', 'DEM', 'ARVI_diff_diff', 'ARVI_diff_max', 'ARVI_d
     , 'NIR_min_val', 'NIR_neg_len', 'NIR_neg_rate', 'NIR_neg_surf', 'NIR_neg_tran'
     , 'NIR_pos_len', 'NIR_pos_rate', 'NIR_pos_surf', 'NIR_pos_tran', 'NIR_sd_val']
 
-def create_header():
+feature_subset = ['ARVI_max_mean_len']
+
+path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/'
 
 
-def create_arff(model, name,feature_names):
-    x, y = get_data('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/enriched_samples9797.csv', feature_names)
-    # lgb_model = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names), metric='multi_logloss', )
-    y_pred, y_test, x_test = fit_predict(x, y, model, class_names, 'LGBM')
-    clustered_y, class_names_new = form_clusters(y_pred, y_test, y, k=0.5)
-    lgb_model1 = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
-    fit_predict(x, clustered_y, lgb_model1, class_names_new, 'LGBM_partially_aggerated')
-    for c in enumerate(class_names_new):
-        print('% {0:2}: {1}', format(c))
+# path = 'D:\\Samples\\'
 
-    clustered_y2, class_names_new2 = form_clusters(y_pred, y_test, y, k=0.6)
-    lgb_model2 = lgb.LGBMClassifier(objective='multiclassova', num_class=len(class_names_new), metric='multi_logloss')
-    fit_predict(x, clustered_y2, lgb_model2, class_names_new2, 'LGBM_fully_aggregated')
-    for c in enumerate(class_names_new2):
-        print('% {0:2}: {1}', format(c))
+# def create_header():
 
-    all_class_names = [class_names[int(rename)] for rename in y]
+
+def create_arff(name, samples_names, feature_names):
+    dataset = pd.read_csv(path + samples_names)
+
+    y = dataset['LPIS_2017'].to_numpy()
+    # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
+    y = [int(a + 1) for a in y]
+    x = dataset[feature_names].to_numpy()
+
+    all_class_names = [crop_names[int(rename)].replace(' ', '_') for rename in y]
     # other = [all_class_names, y, clustered_y, clustered_y2]
 
-    x_all = np.concatenate((x,
-                            np.array(all_class_names)[:, np.newaxis],
-                            np.array(y)[:, np.newaxis],
-                            np.array(clustered_y)[:, np.newaxis],
-                            np.array(clustered_y2)[:, np.newaxis]),
+    x_all = np.concatenate((np.array(all_class_names)[:, np.newaxis],
+                            # np.array(y)[:, np.newaxis],
+                            np.array(x)),
                            axis=1)
-    acc = ''
-    for c in class_names:
-        acc = acc + c + ','
-    print(acc)
+
     df = pd.DataFrame(x_all)
 
-    file = open('/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/{}.csv'.format(name), 'a')
-    columns = np.concatenate((feature_names, ['class_name', 'raw', 'partially_aggregated', 'fully_aggregated']), axis=0)
+    file = open(path + '{}.csv'.format(name), 'a')
+    #
+    # file.write(
+    #     '% Collection of land patch samples\n% 	Location: Slovenija\n% 	Year: 2017\n\n% 	Number of samples per class: 20 000\n% 	Number of classes: 24\n\n@RELATION LPIS_Slovenia_2017\n\n')
+    # file.write('% Citation:\n')
+    # file.write('% Project: Perceptive Sentinel, H2020\n')
+    # file.write(
+    #     '% Parameters: The EO data were collected for the whole year.\4 raw band measurements (red, green, blue - RGB and near infrared - NIR) and 6 relevant vegetation-\ '
+    #     'related derived indices (normalized differential vegetation index - NDVI, normalized differential \
+    #     water index - NDWI, enhanced vegetation index - EVI, soil-adjusted vegetation index - SAVI, structure\
+    #      intensive pigment index - SIPI and atmospherically resistant vegetation index - ARVI).\
+    #      The derived indices are based on extensive domain knowledge and are used for assessing vegetation properties. ')
+    #
+    # file.write(
+    #     '@ATTRIBUTE {:25} {Not_Farmland, Beans, Beets, Buckwheat, Fallow_land, Grass, Hop, Legumes_or_grass, Maize, Meadows, Orchards, Other, Peas, Poppy, Potatoes, Pumpkins, Soft_fruits, Soybean, Summer_cereals, Sun_flower, Vegetables, Vineyards, Winter_cereals, Winter_rape}'.format(
+    #         'LPIS_2017'))
 
-    for c in columns:
+    # columns = np.concatenate((['class_name'], feature_names), axis=0)
+    for c in feature_names:
         file.write('@ATTRIBUTE {:25} NUMERIC\n'.format(c))
 
+    file.write('\n@DATA\n')
     df.to_csv(file, header=False, index=False)
     file.close()
+
+
+if __name__ == '__main__':
+    # fet = all_features
+    fet = feature_subset
+    create_arff('FASTENER_dataset', 'enriched_samples10000.csv', fet)
