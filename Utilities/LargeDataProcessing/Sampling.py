@@ -9,7 +9,7 @@ import datetime as dt
 import random
 
 
-def sample_patches(path, no_patches, no_samples, class_feature, features, weak_classes, mask_feature,
+def sample_patches(path, no_patches, no_samples, class_feature, features, weak_classes=None, mask_feature=None,
                    samples_per_class=None,
                    debug=False, seed=None, class_frequency=False):
     """
@@ -71,26 +71,29 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
             sample_dict.append(dict(array_for_dict))
 
             # Enrichment
-            if class_value in weak_classes:  # TODO check duplicates
-                neighbours = [-3, -2, -1, 0, 1, 2, 3]
-                for x in neighbours:
-                    for y in neighbours:
-                        if x != 0 or y != 0:
-                            h0 = h + x
-                            w0 = w + y
-                            max_h, max_w = 500, 500
-                            if h0 >= max_h or w0 >= max_w or h0 <= 0 or w0 <= 0:
-                                continue
-                            val = float(eopatch[class_feature[0]][class_feature[1]][h0][w0])
-                            if val in weak_classes:
-                                array_for_dict = [(class_name, val)] + [(f[1], float(eopatch[f[0]][f[1]][h0][w0]))
-                                                                        for f in features]
-                                if debug:
-                                    array_for_dict += [('patch_no', patch_id), ('x', w0), ('y', h0)]
-                                sample_dict.append(dict(array_for_dict))
+            if weak_classes is not None:
+                if class_value in weak_classes:  # TODO check duplicates
+                    neighbours = [-3, -2, -1, 0, 1, 2, 3]
+                    for x in neighbours:
+                        for y in neighbours:
+                            if x != 0 or y != 0:
+                                h0 = h + x
+                                w0 = w + y
+                                max_h, max_w = 500, 500
+                                if h0 >= max_h or w0 >= max_w or h0 <= 0 or w0 <= 0:
+                                    continue
+                                val = float(eopatch[class_feature[0]][class_feature[1]][h0][w0])
+                                if val in weak_classes:
+                                    array_for_dict = [(class_name, val)] + [(f[1], float(eopatch[f[0]][f[1]][h0][w0]))
+                                                                            for f in features]
+                                    if debug:
+                                        array_for_dict += [('patch_no', patch_id), ('x', w0), ('y', h0)]
+                                    sample_dict.append(dict(array_for_dict))
 
     df = pd.DataFrame(sample_dict, columns=columns)
     df.dropna(axis=0, inplace=True)
+    # Change to new class mapping
+    df[class_feature[1]] = mapping[df[class_feature[1]]]
 
     class_dictionary = collections.Counter(df[class_feature[1]])
     class_count = class_dictionary.most_common()
@@ -113,6 +116,72 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
     return df_downsampled
 
 
+new_classes = {0: ('Not Farmland', 'xkcd:black'),
+               1: ('Grass', 'xkcd:brown'),
+               2: ('Maize', 'xkcd:butter'),
+               3: ('Orchards', 'xkcd:royal purple'),
+               4: ('Other', 'xkcd:white'),
+               5: ('Peas', 'xkcd:spring green'),
+               6: ('Potatoes', 'xkcd:poo'),
+               7: ('Pumpkins', 'xkcd:pumpkin'),
+               8: ('Soybean', 'xkcd:baby green'),
+               9: ('Summer cereals', 'xkcd:cool blue'),
+               10: ('Sun flower', 'xkcd:piss yellow'),
+               11: ('Vegetables', 'xkcd:bright pink'),
+               12: ('Vineyards', 'xkcd:grape'),
+               13: ('Winter cereals', 'xkcd:ice blue'),
+               14: ('Winter rape', 'xkcd:neon blue')}
+
+mapping = {0: 0,
+           1: 4,  ####
+           2: 4,  ###
+           3: 4,  ###
+           4: 4,  ###
+           5: 1,
+           6: 4,  ###
+           7: 1,  ###
+           8: 2,
+           9: 1,  ###
+           10: 3,
+           11: 4,
+           12: 5,
+           13: 4,  ###
+           14: 6,
+           15: 7,
+           16: 3,  ###
+           17: 8,
+           18: 9,
+           19: 10,
+           20: 11,
+           21: 12,
+           22: 13,
+           23: 14}
+
+old_classes = {0: ('Not Farmland', 'xkcd:black'),
+               1: ('Beans', 'xkcd:blue'),  ####
+               2: ('Beets', 'xkcd:magenta'),  ###
+               3: ('Buckwheat', 'xkcd:burgundy'),  ###
+               4: ('Fallow land', 'xkcd:grey'),  ###
+               5: ('Grass', 'xkcd:brown'),
+               6: ('Hop', 'xkcd:green'),  ###
+               7: ('Legumes or grass', 'xkcd:yellow green'),  ###
+               8: ('Maize', 'xkcd:butter'),
+               9: ('Meadows', 'xkcd:red'),  ###
+               10: ('Orchards', 'xkcd:royal purple'),
+               11: ('Other', 'xkcd:white'),
+               12: ('Peas', 'xkcd:spring green'),
+               13: ('Poppy', 'xkcd:mauve'),  ###
+               14: ('Potatoes', 'xkcd:poo'),
+               15: ('Pumpkins', 'xkcd:pumpkin'),
+               16: ('Soft fruits', 'xkcd:grapefruit'),  ###
+               17: ('Soybean', 'xkcd:baby green'),
+               18: ('Summer cereals', 'xkcd:cool blue'),
+               19: ('Sun flower', 'xkcd:piss yellow'),
+               20: ('Vegetables', 'xkcd:bright pink'),
+               21: ('Vineyards', 'xkcd:grape'),
+               22: ('Winter cereals', 'xkcd:ice blue'),
+               23: ('Winter rape', 'xkcd:neon blue')}
+
 # Example of usage
 if __name__ == '__main__':
     patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
@@ -120,15 +189,15 @@ if __name__ == '__main__':
 
     start_time = time.time()
     no_patches = 1061
-    no_samples = 20000
+    no_samples = 10000
     eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 500), lazy_loading=True)
-    all_features = eopatch.get_feature_list()
-    all_data_timeless = []
-    for f in all_features[0:128]:
-        if len(f) != 2:
-            continue
-        if f[0] == FeatureType.DATA_TIMELESS:
-            all_data_timeless.append((f[0], f[1]))
+    # all_features = eopatch.get_feature_list()
+    # all_data_timeless = []
+    # for f in all_features[0:128]:
+    #     if len(f) != 2:
+    #         continue
+    #     if f[0] == FeatureType.DATA_TIMELESS:
+    #         all_data_timeless.append((f[0], f[1]))
 
     samples, class_dict = sample_patches(path=patches_path,
                                          no_patches=no_patches,
@@ -136,14 +205,12 @@ if __name__ == '__main__':
                                          class_feature=(FeatureType.MASK_TIMELESS, 'LPIS_2017'),
                                          mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
                                          features=[],
-                                         samples_per_class=20000,
-                                         weak_classes=[11, 3, 2, 18, 15, 1, 12],
                                          debug=True,
                                          seed=None,
                                          class_frequency=True)
 
     sample_time = time.time() - start_time
-    filename = 'enriched_samples filip ' + str(int(random.random() * 10000))
+    filename = 'enriched_samples' + str(int(random.random() * 10000))
     # print(samples)
     result = 'Class sample size: {0}. Sampling time {1}'.format(
         int(samples['LPIS_2017'].size / pd.unique(samples['LPIS_2017']).size), sample_time)
