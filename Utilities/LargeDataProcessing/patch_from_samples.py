@@ -10,12 +10,13 @@ import random
 from temporal_features import AddStreamTemporalFeaturesTask as st
 from all_stream_features import allValid
 import itertools as it
-
+from os import path as ospath
 from eolearn.core import EOTask, FeatureType
-
+from scipy.ndimage import gaussian_filter
 from eolearn.ml_tools.utilities import rolling_window
 
 failed_pixels = 0
+
 
 class AddStreamTemporalFeaturesTask():
     # pylint: disable=too-many-instance-attributes
@@ -317,6 +318,8 @@ if __name__ == '__main__':
     patches_path = 'E:\\Data\\PerceptiveSentinel\\Slovenia'
     # patches_path = '/home/beno/Documents/test/Slovenia'
 
+    patches_path_s1 = 'E:\\Data\\PerceptiveSentinel\\Slovenia_S1'
+
     dataset = pd.read_csv(samples_path + 'enriched_samples9797.csv')
     dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
                           'NDVI_min_val', 'SAVI_min_val'], inplace=True)
@@ -332,10 +335,19 @@ if __name__ == '__main__':
     columns = dataset.columns
     dataset = dataset.to_dict(orient='list')
     dataset['DEM'] = np.zeros(no)
+
     # columns = np.concatenate(columns,['DEM'])
     # placeholder = np.zeros(dataset.shape[0])
     for b in base_names:
         for s in suffix_name:
+            dataset[b + s] = np.zeros(no)
+
+    base_names_s1 = ['VV', 'VH', 'VV_spring', 'VV_summer', 'VV_autumn', 'VV_winter', 'VH_spring', 'VH_summer',
+                     'VH_autumn', 'VH_winter']
+    suffix_name_s1 = ['_avg', '_max', '_min', '_std']
+
+    for b in base_names_s1:
+        for s in suffix_name_s1:
             dataset[b + s] = np.zeros(no)
 
     color_names = [[1, 'BLUE'],
@@ -355,8 +367,9 @@ if __name__ == '__main__':
     starttime = time.time()
     patch_id = -1
     eopatch = EOPatch()
-
+    eopatch_s1 = EOPatch()
     for x in range(no):
+    # for x in range(1):
         # percent = x / no
         # if percent > update_per:
         #     update = True
@@ -371,9 +384,15 @@ if __name__ == '__main__':
         h = int(dataset['y'][x])
         # w = np.clip(w, 0, 300)
         # h = np.clip(h, 0, 300)
+        p1 = '{}/eopatch_{}'.format(patches_path, int(patch_id))
+        p2 = '{}/eopatch_{}'.format(patches_path_s1, int(patch_id))
+        if not ospath.exists(p1) or not ospath.exists(p2):
+            continue
+
         if patch_id != patch_id_new:
             patch_id = patch_id_new
-            eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, int(patch_id)), lazy_loading=True)  # CHANGE
+            eopatch = EOPatch.load(p1, lazy_loading=True)  # CHANGE
+            eopatch_s1 = EOPatch.load(p2, lazy_loading=True)
         dataset['DEM'][x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.at['DEM', x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.set_value('DEM',x,eopatch.data_timeless['DEM'][h][w].squeeze() )
@@ -407,6 +426,47 @@ if __name__ == '__main__':
             pix_features = index_stream[i].execute(indices[:, i], eopatch)
             for keys in pix_features:
                 dataset[keys][x] = pix_features[keys]
+
+        # S1 features
+        vv = eopatch_s1.data['IW'][:][h][w][0]
+        vh = eopatch_s1.data['IW'][:][h][w][1]
+        vv_sig5 = gaussian_filter(vv, sigma=5)
+        vh_sig5 = gaussian_filter(vh, sigma=5)
+        winter, spring, summer, autumn = ([], [], [], [])
+        winter_vh, spring_vh, summer_vh, autumn_vh = ([], [], [], [])
+
+        for i, dt0 in enumerate(eopatch_s1.timestamp):
+            m = dt0.month
+            if 6 > m >= 3:
+                spring += [vv_sig5[i]]
+                spring_vh += [vh_sig5[i]]
+            elif 9 > m >= 6:
+                summer += [vv_sig5[i]]
+                summer_vh += [vh_sig5[i]]
+            elif 11 > m >= 9:
+                autumn += [vv_sig5]
+                autumn_vh += [vh_sig5[i]]
+            else:
+                winter += [vv_sig5[i]]
+                winter_vh += [vh_sig5[i]]
+
+        name_and = [('VV', vv_sig5),
+                    ('VH', vh_sig5),
+                    ('VV_spring', spring),
+                    ('VV_summer', summer),
+                    ('VV_autumn', autumn),
+                    ('VV_winter', winter),
+                    ('VH_spring', spring_vh),
+                    ('VH_summer', summer, vh),
+                    ('VH_autumn', autumn_vh),
+                    ('VH_winter', winter_vh)]
+
+        for name, data in name_and:
+            dataset[name + '_avg'] = np.average(data)
+            dataset[name + '_max'] = np.amax(data)
+            dataset[name + '_min'] = np.amin(data)
+            dataset[name + '_std'] = np.std(data)
+
     # print("Done. only {} failed".format(failed_pixels))
     filename = 'extended_samples' + str(int(random.random() * 10000))
     # print(dataset)
