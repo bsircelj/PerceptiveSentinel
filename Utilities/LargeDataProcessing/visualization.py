@@ -7,7 +7,8 @@ import matplotlib
 from Sampling import sample_patches
 from PIL import Image
 from sentinelhub import geo_utils
-
+from scipy.ndimage import gaussian_filter
+import matplotlib.colors as colors
 
 def save_figure(plt, file_name):
     plt.savefig(f'/home/beno/Documents/IJS/Perceptive-Sentinel/Images/Features/{file_name}', dpi=300,
@@ -38,11 +39,81 @@ def color_patch(image, colors=None):
     return new_image / 255
 
 
+new_color = {0: ('Not Farmland', 'xkcd:black'),
+             1: ('Grass', 'xkcd:brown'),
+             2: ('Maize', 'xkcd:butter'),
+             3: ('Orchards', 'xkcd:royal purple'),
+             4: ('Other', 'xkcd:white'),
+             5: ('Peas', 'xkcd:spring green'),
+             6: ('Potatoes', 'xkcd:poo'),
+             7: ('Pumpkins', 'xkcd:pumpkin'),
+             8: ('Soybean', 'xkcd:baby green'),
+             9: ('Summer cereals', 'xkcd:cool blue'),
+             10: ('Sun flower', 'xkcd:piss yellow'),
+             11: ('Vegetables', 'xkcd:bright pink'),
+             12: ('Vineyards', 'xkcd:grape'),
+             13: ('Winter cereals', 'xkcd:ice blue'),
+             14: ('Winter rape', 'xkcd:neon blue')}
+
+names = []
+boundaries = np.zeros(24)
+for i in range(24):
+    names.append(new_color[i][1])
+    boundaries[i] = i - 0.5
+cmap = matplotlib.colors.ListedColormap(names)
+norm = colors.BoundaryNorm(boundaries, cmap.N, clip=True)
+
+#     plt.imshow(lpis, cmap=cmap, norm=norm)
+
+
 def display():
     path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'
     patch_no = 2
-    eopatch = EOPatch.load(path + '/Slovenia/eopatch_{}'.format(patch_no), lazy_loading=True)
+    # eopatch = EOPatch.load(path + '/Slovenia/eopatch_{}'.format(patch_no), lazy_loading=True)
+
+    eopatch = EOPatch.load(path + '/Slovenia/eopatch_WCS')
+    img = eopatch.data['IW'][100][..., 1].squeeze()
+    for i, t in enumerate(eopatch.timestamp):
+        print('{} - {}'.format(i, str(t)))
+
+    print(eopatch.timestamp[0].month)
+    # (165, 337, 333, 2)
+    # plt.title('VV')
+    # plt.imshow(img)
+    # plt.show()
+    w = 1
+    rape = eopatch.data['IW'][:, 5, 143, w]
+    maize = eopatch.data['IW'][:, 10, 115, w]
+    meadow = eopatch.data['IW'][:, 100, 75, w]
+    forest = eopatch.data['IW'][:, 300, 150, w]
+    y = range(165)
+    sigma = 10
+    rape = gaussian_filter(rape, sigma=sigma)
+    maize = gaussian_filter(maize, sigma=sigma)
+    meadow = gaussian_filter(meadow, sigma=sigma)
+    forest = gaussian_filter(forest, sigma=sigma)
+
+    # plt.figure(i)
+    # plt.title('rape')
+    plt.title('Gaussian smoothing, sigma 10')
+
+    plt.plot(y, rape, color='r', label='rape')
+
+    # plt.figure(i)
+    # plt.title('maize')
+    plt.plot(y, maize, label='maize')
+
+    # plt.figure(i)
+    # plt.title('meadow')
+    plt.plot(y, meadow, label='meadow')
+
+    # plt.figure(i)
+    # plt.title('forest')
+    plt.plot(y, forest, color='g', label='forest')
+    plt.legend()
+    plt.show()
+
     # d = FeatureType.MASK_TIMELESS
     # f = 'EDGES_PRETTY'
     # print(len(eopatch.timestamp))
@@ -51,12 +122,12 @@ def display():
     # img = eopatch[d][f].squeeze()
     # d = FeatureType.DATA
     # img = eopatch[d][f][16].squeeze()
-    img = np.clip(eopatch.data['BANDS'][10][..., [3, 2, 1]] * 3.5, 0, 1)
+    # img = np.clip(eopatch.data['BANDS'][10][..., [3, 2, 1]] * 3.5, 0, 1)
 
     # plt.title(f)
-    plt.imshow(img)
+
     # save_figure(plt, f + '.png')
-    plt.show()
+
     # save_figure(plt, f + '.png')
     # print(eopatch)
     # t, w, h = eopatch.data['BANDS'].squeeze()
@@ -76,16 +147,16 @@ def display():
     #
     # # features = [f[1] for f in features]
     #
-    features = [(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-                (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
-                (FeatureType.DATA_TIMELESS, 'EVI_sd_val'),
-                ]
-
-    for d, f in features:
-        img = eopatch[d][f].squeeze()
-        # plt.title(f)
-        plt.imshow(img)
-        save_figure(plt, f + '.png')
+    # features = [(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
+    #             (FeatureType.DATA_TIMELESS, 'EVI_min_val'),
+    #             (FeatureType.DATA_TIMELESS, 'EVI_sd_val'),
+    #             ]
+    #
+    # for d, f in features:
+    #     img = eopatch[d][f].squeeze()
+    #     # plt.title(f)
+    #     plt.imshow(img)
+    #     save_figure(plt, f + '.png')
 
     # ax1.imshow(seg, cmap='gray')
     # ax1.imshow(mask, cmap=cmap, alpha=0.8)
