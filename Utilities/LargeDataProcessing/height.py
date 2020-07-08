@@ -43,20 +43,20 @@ if __name__ == '__main__':
     no_patches = 1061
 
     execution_args = []
-    for i in range(no_patches):
-        i = i + 2
+    # for i in range(no_patches):
+    for i in [479, 480]:
         execution_args.append({
             load: {'eopatch_folder': 'eopatch_{}'.format(i)},
             save: {'eopatch_folder': 'eopatch_{}'.format(i)},
         })
 
-    execution_args = {
-            load: {'eopatch_folder': 'eopatch_1000'},
-            save: {'eopatch_folder': 'eopatch_1000'},
-        }
-    # executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
-    # executor.run()
-    workflow.execute(execution_args)
+    # execution_args = {
+    #         load: {'eopatch_folder': 'eopatch_1000'},
+    #         save: {'eopatch_folder': 'eopatch_1000'},
+    #     }
+    executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
+    executor.run()
+    # workflow.execute(execution_args)
 
 
 

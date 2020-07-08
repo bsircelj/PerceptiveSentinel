@@ -7,6 +7,7 @@ import collections
 import time
 import datetime as dt
 import random
+import os.path as pth
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, features, weak_classes=None, mask_feature=None,
@@ -46,10 +47,16 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
     sample_dict = []
 
     for patch_id in range(no_patches):
+        patch_id = 398
+        path1 = '{}/eopatch_{}/mask_timeless/LPIS_2017.npy'.format(path, patch_id)
+        path2 = '{}/eopatch_{}'.format('E:\\Data\\PerceptiveSentinel\\Slovenia_S1', patch_id)
+        if not pth.exists(path1) or not pth.exists(path2):
+            print('Patch {} missing.'.format(patch_id))
+            continue
         print(patch_id)
         eopatch = EOPatch.load('{}/eopatch_{}'.format(path, patch_id), lazy_loading=True)
-        # _, height, width, _ = eopatch.data['BANDS'].shape
-        height, width = 500, 500  # Were supposed to be 505 and 500, but INCLINATION feature has wrong dimensions
+        _, height, width, _ = eopatch.data['BANDS'].shape
+        # height, width = 500, 500  # Were supposed to be 505 and 500, but INCLINATION feature has wrong dimensions
         mask = eopatch[mask_feature[0]][mask_feature[1]].squeeze()
         mask = mask[0:height, 0:width]
         no_samples = min(height * width, no_samples)
@@ -89,11 +96,12 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
                                     if debug:
                                         array_for_dict += [('patch_no', patch_id), ('x', w0), ('y', h0)]
                                     sample_dict.append(dict(array_for_dict))
+        break
 
     df = pd.DataFrame(sample_dict, columns=columns)
     df.dropna(axis=0, inplace=True)
     # Change to new class mapping
-    df[class_feature[1]] = mapping[df[class_feature[1]]]
+    df[class_feature[1]] = [mapping[x] for x in df[class_feature[1]]]
 
     class_dictionary = collections.Counter(df[class_feature[1]])
     class_count = class_dictionary.most_common()
@@ -188,9 +196,9 @@ if __name__ == '__main__':
     # patches_path = '/home/beno/Documents/test/Slovenia'
 
     start_time = time.time()
-    no_patches = 1061
+    no_patches = 1060
     no_samples = 10000
-    eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 500), lazy_loading=True)
+    # eopatch = EOPatch.load('{}/eopatch_{}'.format(patches_path, 500), lazy_loading=True)
     # all_features = eopatch.get_feature_list()
     # all_data_timeless = []
     # for f in all_features[0:128]:
@@ -207,7 +215,8 @@ if __name__ == '__main__':
                                          features=[],
                                          debug=True,
                                          seed=None,
-                                         class_frequency=True)
+                                         class_frequency=True,
+                                         weak_classes=[19, 12, 20])
 
     sample_time = time.time() - start_time
     filename = 'enriched_samples' + str(int(random.random() * 10000))

@@ -315,14 +315,14 @@ if __name__ == '__main__':
     print('start ' + str(dt.datetime.now()))
     # samples_path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/'  # CHANGE
     samples_path = 'D:\\Samples\\'
-    patches_path = 'E:\\Data\\PerceptiveSentinel\\Slovenia'
+    patches_path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches/'
     # patches_path = '/home/beno/Documents/test/Slovenia'
 
     patches_path_s1 = 'E:\\Data\\PerceptiveSentinel\\Slovenia_S1'
 
-    dataset = pd.read_csv(samples_path + 'enriched_samples9797.csv')
-    dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
-                          'NDVI_min_val', 'SAVI_min_val'], inplace=True)
+    dataset = pd.read_csv(samples_path + 'g2_samples2.csv')
+    # dataset.drop(columns=['Unnamed: 0', 'NDVI_sd_val', 'EVI_min_val', 'ARVI_max_mean_len', 'SIPI_mean_val',
+    #                       'NDVI_min_val', 'SAVI_min_val'], inplace=True)
     dataset.sort_values(by='patch_no', inplace=True)
     no = dataset.shape[0]
     # no=10
@@ -350,6 +350,11 @@ if __name__ == '__main__':
         for s in suffix_name_s1:
             dataset[b + s] = np.zeros(no)
 
+    # single_time = [20, 40, 60, 90, 150]
+    # for b in ['VV', 'VH']:
+    #     for s in single_time:
+    #         dataset[b + str(s)] = np.zeros(no)
+
     color_names = [[1, 'BLUE'],
                    [3, 'GREEN'],
                    [3, 'RED'],
@@ -369,7 +374,7 @@ if __name__ == '__main__':
     eopatch = EOPatch()
     eopatch_s1 = EOPatch()
     for x in range(no):
-    # for x in range(1):
+        # for x in range(1):
         # percent = x / no
         # if percent > update_per:
         #     update = True
@@ -384,20 +389,27 @@ if __name__ == '__main__':
         h = int(dataset['y'][x])
         # w = np.clip(w, 0, 300)
         # h = np.clip(h, 0, 300)
-        p1 = '{}/eopatch_{}'.format(patches_path, int(patch_id))
-        p2 = '{}/eopatch_{}'.format(patches_path_s1, int(patch_id))
-        if not ospath.exists(p1) or not ospath.exists(p2):
-            continue
 
         if patch_id != patch_id_new:
+
+            p1 = '{}/eopatch_{}'.format(patches_path, int(patch_id_new))
+            p2 = '{}/eopatch_{}'.format(patches_path_s1, int(patch_id_new))
+            if not ospath.exists(p1) or not ospath.exists(p2):
+                print('Patch {} is missing.'.format(patch_id_new))
+                continue
             patch_id = patch_id_new
+            print('Patch {} loaded successfully.'.format(patch_id_new))
             eopatch = EOPatch.load(p1, lazy_loading=True)  # CHANGE
             eopatch_s1 = EOPatch.load(p2, lazy_loading=True)
         dataset['DEM'][x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.at['DEM', x] = eopatch.data_timeless['DEM'][h][w].squeeze()
         # dataset.set_value('DEM',x,eopatch.data_timeless['DEM'][h][w].squeeze() )
         # print(dataset.at['DEM', x])
-        ti, _, _, _ = eopatch.data['BANDS'].shape
+        try:
+            ti, _, _, _ = eopatch.data['BANDS'].shape
+        except:
+            print('bands missing')
+            continue
         # one_pixel = np.zeros((len(color_names), ti))
         si = 0
         for c_index, c_name in color_names:
@@ -423,13 +435,17 @@ if __name__ == '__main__':
             indices[t] = base_features.execute(nir, blue, green, red)
 
         for i in range(6):
-            pix_features = index_stream[i].execute(indices[:, i], eopatch)
+            try:
+                pix_features = index_stream[i].execute(indices[:, i], eopatch)
+            except:
+                failed_pixels += 1
+                continue
             for keys in pix_features:
                 dataset[keys][x] = pix_features[keys]
 
         # S1 features
-        vv = eopatch_s1.data['IW'][:][h][w][0]
-        vh = eopatch_s1.data['IW'][:][h][w][1]
+        vv = eopatch_s1.data['IW'][..., h, w, 0]
+        vh = eopatch_s1.data['IW'][..., h, w, 1]
         vv_sig5 = gaussian_filter(vv, sigma=5)
         vh_sig5 = gaussian_filter(vh, sigma=5)
         winter, spring, summer, autumn = ([], [], [], [])
@@ -457,18 +473,30 @@ if __name__ == '__main__':
                     ('VV_autumn', autumn),
                     ('VV_winter', winter),
                     ('VH_spring', spring_vh),
-                    ('VH_summer', summer, vh),
+                    ('VH_summer', summer_vh),
                     ('VH_autumn', autumn_vh),
                     ('VH_winter', winter_vh)]
 
         for name, data in name_and:
-            dataset[name + '_avg'] = np.average(data)
-            dataset[name + '_max'] = np.amax(data)
-            dataset[name + '_min'] = np.amin(data)
-            dataset[name + '_std'] = np.std(data)
+            dataset[name + '_avg'][x] = np.average(data)
+            dataset[name + '_max'][x] = np.amax(data)
+            dataset[name + '_min'][x] = np.amin(data)
+            dataset[name + '_std'][x] = np.std(data)
+
+        # for single in single_time:
+        #     dataset['VV' + str(single)][x] = vv_sig5[single]
+        #     dataset['VH' + str(single)][x] = vh_sig5[single]
 
     # print("Done. only {} failed".format(failed_pixels))
-    filename = 'extended_samples' + str(int(random.random() * 10000))
+    filename = ''
+    i = 0
+    while True:
+        filename = 'g2_extended' + str(i)
+        if ospath.exists(samples_path + filename + '.csv'):
+            i += 1
+        else:
+            break
+
     # print(dataset)
     dataset = pd.DataFrame.from_dict(dataset)
     # print(dataset)

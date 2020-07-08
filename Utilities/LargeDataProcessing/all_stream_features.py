@@ -1,5 +1,5 @@
 from eolearn.ml_tools.utilities import rolling_window
-
+from scipy import ndimage
 import enum
 import numpy as np
 from eolearn.core import EOTask, LinearWorkflow, FeatureType, OverwritePermission, LoadFromDisk, SaveToDisk
@@ -17,6 +17,7 @@ from eolearn.features import LinearInterpolation, SimpleFilterTask
 
 from eolearn.io import SentinelHubDemTask
 
+
 class SentinelHubValidData:
     """
     Combine Sen2Cor's classification map with `IS_DATA` to define a `VALID_DATA_SH` mask
@@ -26,6 +27,19 @@ class SentinelHubValidData:
     def __call__(self, eopatch):
         return np.logical_and(eopatch.mask['IS_DATA'].astype(np.bool),
                               np.logical_not(eopatch.mask['CLM'].astype(np.bool)))
+
+
+class AddGradientTask(EOTask):
+    def __init__(self, elevation_feature, result_feature):
+        self.feature = elevation_feature
+        self.result_feature = result_feature
+
+    def execute(self, eopatch):
+        elevation = eopatch[self.feature[0]][self.feature[1]].squeeze()
+        gradient = ndimage.gaussian_gradient_magnitude(elevation, 1)
+        eopatch.add_feature(self.result_feature[0], self.result_feature[1], gradient[..., np.newaxis])
+
+        return eopatch
 
 
 class printPatch(EOTask):
@@ -87,6 +101,10 @@ def temporal_derivative(data, window_size=(3,)):
     return normalize_feature(padded_slope)
 
 
+def rgb2gray(rgb):
+    return np.dot(rgb[..., :3], [0.2989, 0.5870, 0.1140])
+
+
 class AddBaseFeatures(EOTask):
 
     def __init__(self, c1=6, c2=7.5, L=1):
@@ -132,6 +150,16 @@ class AddBaseFeatures(EOTask):
         savi = np.clip(((nir - red) / (nir + red + Lvar + 0.000000001)) * (1 + Lvar), -1, 1)
         eopatch.add_feature(FeatureType.DATA, 'SAVI', savi)
 
+        img = np.clip(eopatch.data['BANDS'][..., [2, 1, 0]] * 3.5, 0, 1)
+        t, w, h, _ = img.shape
+        gray_img = np.zeros((t, w, h))
+        for time in range(t):
+            img0 = np.clip(eopatch[FeatureType.DATA]['BANDS'][time][..., [2, 1, 0]] * 3.5, 0, 1)
+            img = rgb2gray(img0)
+            gray_img[time] = (img * 255).astype(np.uint8)
+
+        eopatch.add_feature(FeatureType.DATA, 'GRAY', gray_img[..., np.newaxis])
+
         return eopatch
 
 
@@ -148,6 +176,17 @@ class ValidDataFractionPredicate:
         return coverage > self.threshold
 
 
+def apply_2d(lpis, func):
+    width, height = lpis.shape
+    found_nan = False
+    for x in range(width):
+        for y in range(height):
+            if not found_nan:
+                found_nan = True if np.isnan(lpis[x][y]) else False
+            lpis[x][y] = func(lpis[x][y])
+    return lpis, found_nan
+
+
 class ModifyLPISTask(EOTask):
 
     def __init__(self, feature_name):
@@ -156,12 +195,13 @@ class ModifyLPISTask(EOTask):
     def execute(self, eopatch):
         all_features = eopatch.get_feature_list()
         if (FeatureType.MASK_TIMELESS, self.feature_name) in all_features:
-            lpis = eopatch.mask_timeless[self.feature_name].squeee()
-            lpis = lpis + 1
-            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, lpis)
+            lpis = eopatch.mask_timeless[self.feature_name].squeeze()
+            lpis, found = apply_2d(lpis, lambda x: 0 if np.isnan(x) else int(x + 1))
+            if found:
+                eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, lpis[..., np.newaxis])
         else:
             t, w, h, _ = eopatch.data['BANDS'].shape
-            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, np.zeros((w, h)))
+            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature_name, np.zeros((w, h, 1)))
         return eopatch
 
 
@@ -174,13 +214,13 @@ if __name__ == '__main__':
     path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
-    load = LoadFromDisk(patch_location)
+    load = LoadTask(patch_location)
 
     save_path_location = path + '/Slovenia/'
     if not os.path.isdir(save_path_location):
         os.makedirs(save_path_location)
 
-    save = SaveToDisk(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+    save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
     # valid_data_predicate = ValidDataFractionPredicate(0.8)
     # filter_task = SimpleFilterTask((FeatureType.MASK, 'IS_VALID'), valid_data_predicate)
@@ -219,7 +259,7 @@ if __name__ == '__main__':
             raster_dtype=np.uint8))
     '''
     execution_args = []
-    for id in range(no_patches):
+    for id in range(479, no_patches):
         execution_args.append({
             load: {'eopatch_folder': 'eopatch_{}'.format(id)},
             save: {'eopatch_folder': 'eopatch_{}'.format(id)}
@@ -249,6 +289,7 @@ if __name__ == '__main__':
     lpis_task = ModifyLPISTask('LPIS_2017')
     size_big = (500, 505)
     dem = SentinelHubDemTask((FeatureType.DATA_TIMELESS, 'DEM'), size=size_big)
+    grad = AddGradientTask((FeatureType.DATA_TIMELESS, 'DEM'), (FeatureType.DATA_TIMELESS, 'INCLINATION'))
 
     workflow = LinearWorkflow(
         load,
@@ -259,6 +300,7 @@ if __name__ == '__main__':
         # linear_interp,
         AddBaseFeatures(),
         dem,
+        grad,
         # printPatch('base added '),
         # addStreamNDVI,
         # addStreamSAVI,
@@ -279,8 +321,8 @@ if __name__ == '__main__':
 
     # start_time = time.time()
     # runs workflow for each set of arguments in list
-    executor = EOExecutor(workflow, execution_args, save_logs=True)
-    executor.run(workers=4, multiprocess=True)
+    executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
+    executor.run(workers=3, multiprocess=True)
 
     # file = open('stream_timing.txt', 'a')
     # running = str(dt.datetime.now()) + ' Running time: {}\n'.format(time.time() - start_time)
@@ -289,3 +331,5 @@ if __name__ == '__main__':
     # file.close()
 
     # executor.make_report()
+
+    # workflow.execute({load: {'eopatch_folder': 'eopatch_1000'}, save: {'eopatch_folder': 'eopatch_1000'}, })

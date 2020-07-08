@@ -7,7 +7,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Polygon
 import sys
-from sentinelhub import BBoxSplitter, BBox, CRS, CustomUrlParam
+# from sentinelhub import BBoxSplitter, BBox, CustomUrlParam
 from eolearn.core import EOTask, EOPatch, LinearWorkflow, EOWorkflow, Dependency, FeatureType, OverwritePermission, \
     LoadTask, SaveTask, EOExecutor
 from eolearn.io import S2L1CWCSInput
@@ -15,9 +15,9 @@ from eolearn.geometry import VectorToRaster
 import os
 import datetime
 # from CropData.eopatches import get_bbox_splitter, get_bbox_gdf
-from CropData.workflows import get_create_and_add_lpis_workflow
-from CropData.plots import draw_bbox, draw_vector_timeless
-from CropData.utilities import get_slovenia_crop_geopedia_idx_to_crop_id_mapping, get_group_id
+# from CropData.workflows import get_create_and_add_lpis_workflow
+# from CropData.plots import draw_bbox, draw_vector_timeless
+# from CropData.utilities import get_slovenia_crop_geopedia_idx_to_crop_id_mapping, get_group_id
 from CropData.tasks import FixLPIS, CreatePatch, AddGeopediaVectorFeature, AddAreaRatio
 from os import path as ospath
 
@@ -90,8 +90,9 @@ class WorkflowExclude(EOTask):
         #                       None):  # more options can be specified also
         #    print(df)
         if self.feature not in eopatch[self.feature_type]:
-            fet = np.zeros(eopatch.data['BANDS'][0, :, :, 0].shape, dtype=np.int8)
-            eopatch.add_feature(FeatureType.mask_timeless, self.feature, fet[..., np.newaxis])
+            # fet = np.zeros(eopatch.data['BANDS'][0, :, :, 0].shape, dtype=np.int8)
+            fet = np.zeros((505, 500), dtype=np.int8)
+            eopatch.add_feature(FeatureType.MASK_TIMELESS, self.feature, fet[..., np.newaxis])
             return eopatch
         for t in self.extra_tasks:
             eopatch = t(eopatch)
@@ -192,7 +193,7 @@ class RemoveFeature(EOTask):
 
 
 class ChangeGroups(EOTask):
-    def __init__(self, new_groups, feature_type=FeatureType.DATA_TIMELESS, feature_name='LPIS_2017',
+    def __init__(self, new_groups, feature_type=FeatureType.MASK_TIMELESS, feature_name='LPIS_2017',
                  new_feature_name='LPIS_2017_G2'):
         self.new_groups = new_groups
         self.feature_type = feature_type
@@ -201,26 +202,57 @@ class ChangeGroups(EOTask):
 
     def execute(self, eopatch):
         lpis = eopatch[self.feature_type][self.feature_name].squeeze()
-        print(lpis)
+        # print(lpis[10])
         shape = lpis.shape
         lpis = np.reshape(lpis, -1)
-        add = 0
-        if np.any(lpis == -1):
-            add = 1  # Original groups start from -1 (not farmalnd) I later added 1 so it starts from 0
-        lpis = [self.new_groups[i + add] for i in lpis]
+        # add = 0
+        # if np.any(lpis == -1):
+        #     add = 1  # Original groups start from -1 (not farmalnd) I later added 1 so it starts from 0
+        lpis = [int(self.new_groups[i + 1]) if not np.isnan(i) else int(0) for i in lpis]
         lpis = np.reshape(lpis, shape)
         eopatch.add_feature(self.feature_type, self.new_feature_name, lpis[..., np.newaxis])
-        print(lpis)
+        # print(lpis[10])
+        return eopatch
+
+
+class EmptyPatch(EOTask):
+
+    def execute(self, bbox, meta_info):
+        eopatch = EOPatch()
+        eopatch.bbox = bbox
+        eopatch.meta_info = meta_info
+        eopatch.add_feature(FeatureType.DATA, 'BANDS', np.zeros((1, 505, 500, 1)))
+        # print(eopatch)
         return eopatch
 
 
 def load_LPIS(country, year, path, no_patches):
-    patch_location = path + '/{}'.format(country)
-    load = LoadTask(patch_location, lazy_loading=True)
+    # DATA_FOLDER = os.path.join('data')
+    # area = gpd.read_file(os.path.join(DATA_FOLDER, 'svn_buffered.geojson'))
+    # # area = gpd.read_file(os.path.join(DATA_FOLDER, 'austria.geojson'))
+    #
+    # # Convert CRS to UTM_33N
+    # country_crs = CRS.UTM_33N
+    # area = area.to_crs(crs={'init': CRS.ogc_string(country_crs)})
+    #
+    # # Get the country's shape in polygon format
+    # country_shape = area.geometry.values.tolist()[-1]
+    #
+    # # Plot country
+    # area.plot()
+    # plt.axis('off');
+    #
+    # # Create the splitter to obtain a list of bboxes
+    # bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 2, 17 * 2))
+    #
+    # bbox_list = np.array(bbox_splitter.get_bbox_list())
+    # patch_location = path + '/{}'.format(country)
+    # load = LoadTask(patch_location, lazy_loading=True)
     save_path_location = 'E:/Data/PerceptiveSentinel/LPIS'
     if not os.path.isdir(save_path_location):
         os.makedirs(save_path_location)
-    save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
+    save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH,
+                    features={FeatureType.MASK_TIMELESS: ['LPIS_2017_G2']})
 
     # workflow_data = get_create_and_add_lpis_workflow(country, year, save_path_location)
 
@@ -252,43 +284,40 @@ def load_LPIS(country, year, path, no_patches):
     change_groups = ChangeGroups(mapping)
 
     exclude = WorkflowExclude(area_ratio, fixlpis, add_group, rasterize)
+    empty = EmptyPatch()
 
     workflow = LinearWorkflow(
-        load,
+        empty,
         add_lpis,
         exclude,
         change_groups,
         save
     )
 
-    group_workflow = LinearWorkflow(
-        load,
-        change_groups,
-        save
-    )
-    workflow.execute({
-                load: {'eopatch_folder': '/eopatch_{}'.format(0)},
-                save: {'eopatch_folder': '/eopatch_{}'.format(0)}
-            })
+    # workflow.execute({
+    #     load: {'eopatch_folder': '/eopatch_{}'.format(0)},
+    #     save: {'eopatch_folder': '/eopatch_{}'.format(0)}
+    # })
 
     execution_args = []
     regroup_args = []
-    for i in range(no_patches):
-        if not ospath.exists('{}\\Slovenia\\eopatch_{}\\mask_timeless\\LPIS_2017.npy'.format(path, i)):
-            execution_args.append({
-                load: {'eopatch_folder': '/eopatch_{}'.format(i)},
-                save: {'eopatch_folder': '/eopatch_{}'.format(i)}
-            })
-        else:
-            regroup_args.append({
-                load: {'eopatch_folder': '/eopatch_{}'.format(i)},
-                save: {'eopatch_folder': '/eopatch_{}'.format(i)}
-            })
-    ##### here you choose how many processes/threads you will run, workers=none is max of processors
+    for i in range(1085):
+        if ospath.exists('E:\\Data\\PerceptiveSentinel\\LPIS\\eopatch_{}'.format(i)):
+            continue
+        print(i)
+        # for i in range(300, 302):
+        eopatch = EOPatch.load(path='E:\\Data\\PerceptiveSentinel\\Slovenia\\eopatch_{}'.format(i), lazy_loading=True)
+        # print(eopatch)
 
-    # executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
-    # executor.run(workers=None, multiprocess=True)
-    # executor.run()
+        execution_args.append({
+            empty: {'bbox': eopatch.bbox, 'meta_info': eopatch.meta_info},
+            save: {'eopatch_folder': '/eopatch_{}'.format(i)}
+        })
+    ##### here you choose how many processes/threads you will run, workers=none is max of processors
+    # workflow.execute(execution_args[578])
+    executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
+    # executor.run(workers=3, multiprocess=True)
+    executor.run()
 
     # executor = EOExecutor(workflow, [{load: {'eopatch_folder': 'eopatch_0'},
     #                                  save: {'eopatch_folder': 'eopatch_0'}

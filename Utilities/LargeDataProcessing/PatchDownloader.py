@@ -30,7 +30,7 @@ def generate_slo_shapefile(path):
     plt.axis('off');
 
     # Create the splitter to obtain a list of bboxes
-    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 3, 17 * 3))
+    bbox_splitter = BBoxSplitter([country_shape], country_crs, (25 * 2, 17 * 2))
 
     bbox_list = np.array(bbox_splitter.get_bbox_list())
     info_list = np.array(bbox_splitter.get_info_list())
@@ -94,4 +94,6 @@ if __name__ == '__main__':
     path = 'E:/Data/PerceptiveSentinel'
     # path = '/home/beno/Documents/test'
     gdf, bbox_list = generate_slo_shapefile(path)
-    download_patches(path, gdf, bbox_list)
+    indexes = [0, 480, 498, 499, 501, 502]
+    indexes.extend(range(1061, 1084))
+    download_patches(path, gdf, bbox_list, indexes)

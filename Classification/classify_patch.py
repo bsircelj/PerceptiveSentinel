@@ -18,16 +18,17 @@ from sklearn import tree
 from sklearn.neural_network import MLPClassifier
 import matplotlib
 import matplotlib.colors as colors
+import matplotlib.patches as mpatches
 import numpy.ma as ma
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, plot_confusion_matrix
-import matplotlib.patches as mpatches
 from joblib import dump, load
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
-path = '/home/beno/Documents/IJS/Perceptive-Sentinel/'
+# path = '/home/beno/Documents/IJS/Perceptive-Sentinel/'
+path = 'D:\\Users\\Beno\\'
 
 crop_names = {0: 'Not Farmland', 1: 'Beans', 2: 'Beets', 3: 'Buckwheat', 4: 'Fallow land', 5: 'Grass', 6: 'Hop',
               7: 'Legumes or grass', 8: 'Maize', 9: 'Meadows', 10: 'Orchards', 11: 'Other', 12: 'Peas', 13: 'Poppy',
@@ -60,6 +61,48 @@ name_and_color = {0: ('Not Farmland', 'xkcd:black'),
                   21: ('Vineyards', 'xkcd:grape'),
                   22: ('Winter cereals', 'xkcd:ice blue'),
                   23: ('Winter rape', 'xkcd:neon blue')}
+
+new_classes = {0: ('Not Farmland', 'xkcd:black'),
+               1: ('Grass', 'xkcd:brown'),
+               2: ('Maize', 'xkcd:butter'),
+               3: ('Orchards', 'xkcd:royal purple'),
+               4: ('Other', 'xkcd:white'),
+               5: ('Peas', 'xkcd:spring green'),
+               6: ('Potatoes', 'xkcd:poo'),
+               7: ('Pumpkins', 'xkcd:pumpkin'),
+               8: ('Soybean', 'xkcd:baby green'),
+               9: ('Summer cereals', 'xkcd:cool blue'),
+               10: ('Sun flower', 'xkcd:piss yellow'),
+               11: ('Vegetables', 'xkcd:bright pink'),
+               12: ('Vineyards', 'xkcd:grape'),
+               13: ('Winter cereals', 'xkcd:ice blue'),
+               14: ('Winter rape', 'xkcd:neon blue')}
+
+mapping = {0: ('Not Farmland', 'xkcd:black'),
+           1: ('Beans', 'xkcd:blue'),  ####
+           2: ('Beets', 'xkcd:magenta'),  ###
+           3: ('Buckwheat', 'xkcd:burgundy'),  ###
+           4: ('Fallow land', 'xkcd:grey'),  ###
+           5: ('Grass', 'xkcd:brown'),
+           6: ('Hop', 'xkcd:green'),  ###
+           7: ('Legumes or grass', 'xkcd:yellow green'),  ###
+           8: ('Maize', 'xkcd:butter'),
+           9: ('Meadows', 'xkcd:red'),  ###
+           10: ('Orchards', 'xkcd:royal purple'),
+           11: ('Other', 'xkcd:white'),
+           12: ('Peas', 'xkcd:spring green'),
+           13: ('Poppy', 'xkcd:mauve'),  ###
+           14: ('Potatoes', 'xkcd:poo'),
+           15: ('Pumpkins', 'xkcd:pumpkin'),
+           16: ('Soft fruits', 'xkcd:grapefruit'),  ###
+           17: ('Soybean', 'xkcd:baby green'),
+           18: ('Summer cereals', 'xkcd:cool blue'),
+           19: ('Sun flower', 'xkcd:piss yellow'),
+           20: ('Vegetables', 'xkcd:bright pink'),
+           21: ('Vineyards', 'xkcd:grape'),
+           22: ('Winter cereals', 'xkcd:ice blue'),
+           23: ('Winter rape', 'xkcd:neon blue')}
+
 joined_classes = [7, 5, 9]
 
 names = []
@@ -90,13 +133,14 @@ features400 = [(FeatureType.DATA_TIMELESS, 'DEM'),
                (FeatureType.DATA_TIMELESS, 'GREEN_pos_surf')
                ]
 
-results_path = '/home/beno/Documents/test/Results/'
+# results_path = '/home/beno/Documents/test/Results/'
+results_path = path + 'Results'
 
 
 def save_figure(plt, file_name):
     # plt.savefig(f'/home/beno/Documents/IJS/Perceptive-Sentinel/Images/Features/{file_name}', dpi=300,
     #             bbox_inches='tight')
-    plt.savefig(f'D:/users/Beno/{file_name}', dpi=300,
+    plt.savefig(f'D:/users/Beno/Images/{file_name}', dpi=300,
                 bbox_inches='tight')
 
 
@@ -266,7 +310,7 @@ if __name__ == '__main__':
 
     # patches_path = '/home/beno/Documents/test/Slovenia'
     patches_path = 'E:/Data/PerceptiveSentinel/Slovenia'
-    patch_id = 2
+    patch_id = 1000
 
     x_patch, y_test, patch_shape = read_patch(patches_path, patch_id, features400)
 

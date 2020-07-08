@@ -1,11 +1,6 @@
 import numpy as np
 import pandas as pd
 
-crop_names = {0: 'Not Farmland', 1: 'Beans', 2: 'Beets', 3: 'Buckwheat', 4: 'Fallow land', 5: 'Grass', 6: 'Hop',
-              7: 'Legumes or grass', 8: 'Maize', 9: 'Meadows', 10: 'Orchards', 11: 'Other', 12: 'Peas', 13: 'Poppy',
-              14: 'Potatoes', 15: 'Pumpkins', 16: 'Soft fruits', 17: 'Soybean', 18: 'Summer cereals', 19: 'Sun flower',
-              20: 'Vegetables', 21: 'Vineyards', 22: 'Winter cereals', 23: 'Winter rape'}
-
 all_features = ['INCLINATION', 'DEM', 'ARVI_diff_diff', 'ARVI_diff_max', 'ARVI_diff_min'
     , 'ARVI_max_mean_feature', 'ARVI_max_mean_len', 'ARVI_max_mean_surf'
     , 'ARVI_max_val', 'ARVI_mean_val', 'ARVI_min_val', 'ARVI_neg_len'
@@ -51,60 +46,45 @@ all_features = ['INCLINATION', 'DEM', 'ARVI_diff_diff', 'ARVI_diff_max', 'ARVI_d
     , 'NIR_max_mean_len', 'NIR_max_mean_surf', 'NIR_max_val', 'NIR_mean_val'
     , 'NIR_min_val', 'NIR_neg_len', 'NIR_neg_rate', 'NIR_neg_surf', 'NIR_neg_tran'
     , 'NIR_pos_len', 'NIR_pos_rate', 'NIR_pos_surf', 'NIR_pos_tran', 'NIR_sd_val']
+indexes = [1, 6, 7, 115, 117, 121, 143]
 
-feature_subset = ['ARVI_max_mean_len']
+i1 = [1, 6, 7, 117, 143]
+i2 = [0, 1, 7, 9, 45]
+i3 = [1, 123, 137, 155, 119, ]
+i4 = [1, 6, 115, 117, 121]
+i5 = [0, 1, 7, 121, 177]
+i6 = [1, 6, 7, 117, 143]
+i7 = [0, 42, 135, 139, 159]
 
-# path = '/home/beno/Documents/IJS/Perceptive-Sentinel/Samples/'
-path = 'D:\\Samples\\'
+all_relevant = i1
+for i in [i1, i2, i3, i4, i5, i6, i7]:
+    all_relevant = np.union1d(all_relevant, i)
 
-# def create_header():
 
-
-def create_arff(name, samples_names, feature_names):
-    dataset = pd.read_csv(path + samples_names)
-
-    y = dataset['LPIS_2017'].to_numpy()
-    # !!!! -1 is marking no LPIS data so everything is shifted by one cause some classifiers don't want negative numbers
-    y = [int(a + 1) for a in y]
-    x = dataset[feature_names].to_numpy()
-
-    all_class_names = [crop_names[int(rename)].replace(' ', '_') for rename in y]
-    # other = [all_class_names, y, clustered_y, clustered_y2]
-
-    x_all = np.concatenate((np.array(all_class_names)[:, np.newaxis],
-                            # np.array(y)[:, np.newaxis],
-                            np.array(x)),
-                           axis=1)
-
-    df = pd.DataFrame(x_all)
-
-    file = open(path + '{}.csv'.format(name), 'a')
-    #
-    # file.write(
-    #     '% Collection of land patch samples\n% 	Location: Slovenija\n% 	Year: 2017\n\n% 	Number of samples per class: 20 000\n% 	Number of classes: 24\n\n@RELATION LPIS_Slovenia_2017\n\n')
-    # file.write('% Citation:\n')
-    # file.write('% Project: Perceptive Sentinel, H2020\n')
-    # file.write(
-    #     '% Parameters: The EO data were collected for the whole year.\4 raw band measurements (red, green, blue - RGB and near infrared - NIR) and 6 relevant vegetation-\ '
-    #     'related derived indices (normalized differential vegetation index - NDVI, normalized differential \
-    #     water index - NDWI, enhanced vegetation index - EVI, soil-adjusted vegetation index - SAVI, structure\
-    #      intensive pigment index - SIPI and atmospherically resistant vegetation index - ARVI).\
-    #      The derived indices are based on extensive domain knowledge and are used for assessing vegetation properties. ')
-    #
-    # file.write(
-    #     '@ATTRIBUTE {:25} {Not_Farmland, Beans, Beets, Buckwheat, Fallow_land, Grass, Hop, Legumes_or_grass, Maize, Meadows, Orchards, Other, Peas, Poppy, Potatoes, Pumpkins, Soft_fruits, Soybean, Summer_cereals, Sun_flower, Vegetables, Vineyards, Winter_cereals, Winter_rape}'.format(
-    #         'LPIS_2017'))
-
-    # columns = np.concatenate((['class_name'], feature_names), axis=0)
-    for c in feature_names:
-        file.write('@ATTRIBUTE {:25} NUMERIC\n'.format(c))
-
-    file.write('\n@DATA\n')
-    df.to_csv(file, header=False, index=False)
-    file.close()
-
+def p(lst):
+    all = []
+    for i in lst:
+        all = np.concatenate((all, [all_features[i]]))
+    print(all)
 
 if __name__ == '__main__':
-    fet = all_features
-    # fet = feature_subset
-    create_arff('FASTENER_dataset', 'extended_samples9953.csv', fet)
+    print(all_relevant)
+    p(i2)
+    p(i3)
+    p(i4)
+    p(i5)
+    p(i6)
+    p(i7)
+    # for i in i1:
+    #     print(all_features[i])
+    # all = []
+    # for i in all_relevant:
+    #     all = np.concatenate((all, [all_features[i]]))
+    #
+    # all = np.concatenate((all, ['LPIS_2017', 'patch_no', 'x', 'y']))
+    #
+    # dataset = pd.read_csv('D:\\Samples\\extended_samples9953.csv')
+    # # print(dataset.columns)
+    # new_dat = dataset[all]
+    # # print(new_dat)
+    # new_dat.to_csv('D:/Samples/genetic_samples2.csv')

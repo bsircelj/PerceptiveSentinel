@@ -1,6 +1,6 @@
 import warnings
-warnings.filterwarnings("ignore")
 
+warnings.filterwarnings("ignore")
 
 from temporal_features import AddStreamTemporalFeaturesTask
 from eolearn.mask import AddCloudMaskTask, get_s2_pixel_cloud_detector, AddValidDataMaskTask
@@ -15,9 +15,8 @@ import os
 from Utilities.LargeDataProcessing.all_stream_features import AddBaseFeatures
 from eolearn.features import LinearInterpolation, SimpleFilterTask
 from extract_edges import ExtractEdgesTask
-from PatchDownloader import download_patches,generate_slo_shapefile
-
-
+from PatchDownloader import download_patches, generate_slo_shapefile
+from os import path as ospath
 
 
 class ValidDataFractionPredicate:
@@ -77,20 +76,20 @@ class SentinelHubValidData:
 if __name__ == '__main__':
     path = 'E:/Data/PerceptiveSentinel'
     # path = '/home/beno/Documents/test'
-    gdf, bbox_list = generate_slo_shapefile(path)
-
-    broken_patches = [12]
-    download_patches(path, gdf, bbox_list, broken_patches)
+    # gdf, bbox_list = generate_slo_shapefile(path)
+    # indexes = [0, 480, 498, 499, 501, 502]
+    # indexes.extend(range(1061, 1084))
+    # broken_patches = indexes
+    # download_patches(path, gdf, bbox_list, broken_patches)
 
     # no_patches = 1085
     no_patches = 1061
-
 
     # path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
-    load = LoadTask(patch_location, lazy_loading=True)
+    load = LoadTask(patch_location)
 
     save_path_location = path + '/Slovenia/'
     if not os.path.isdir(save_path_location):
@@ -98,12 +97,12 @@ if __name__ == '__main__':
 
     save = SaveTask(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
-    addStreamNDVI = AddStreamTemporalFeaturesTask(data_feature='NDVI')
-    addStreamSAVI = AddStreamTemporalFeaturesTask(data_feature='SAVI')
-    addStreamEVI = AddStreamTemporalFeaturesTask(data_feature='EVI')
-    addStreamARVI = AddStreamTemporalFeaturesTask(data_feature='ARVI')
-    addStreamSIPI = AddStreamTemporalFeaturesTask(data_feature='SIPI')
-    addStreamNDWI = AddStreamTemporalFeaturesTask(data_feature='NDWI')
+    # addStreamNDVI = AddStreamTemporalFeaturesTask(data_feature='NDVI')
+    # addStreamSAVI = AddStreamTemporalFeaturesTask(data_feature='SAVI')
+    # addStreamEVI = AddStreamTemporalFeaturesTask(data_feature='EVI')
+    # addStreamARVI = AddStreamTemporalFeaturesTask(data_feature='ARVI')
+    # addStreamSIPI = AddStreamTemporalFeaturesTask(data_feature='SIPI')
+    # addStreamNDWI = AddStreamTemporalFeaturesTask(data_feature='NDWI')
 
     # add_data = S2L1CWCSInput(
     #     layer='BANDS-S2-L1C',
@@ -130,11 +129,13 @@ if __name__ == '__main__':
                                           )
 
     execution_args = []
-    for id in broken_patches:
-        execution_args.append({
-            load: {'eopatch_folder': 'eopatch_{}'.format(id)},
-            save: {'eopatch_folder': 'eopatch_{}'.format(id)}
-        })
+    for i in range(1084):
+        if not ospath.exists('{}\\Slovenia\\eopatch_{}\\mask\\CLM.npy'.format(path, i)):
+            # print(i)
+            execution_args.append({
+                load: {'eopatch_folder': 'eopatch_{}'.format(i)},
+                save: {'eopatch_folder': 'eopatch_{}'.format(i)}
+            })
 
     structuring_2d = [[0, 1, 0],
                       [1, 1, 1],
@@ -166,7 +167,7 @@ if __name__ == '__main__':
              }
         ],
         structuring_element=structuring_2d,
-        excluded_features=[((FeatureType.DATA, 'NDVI'), 0.3)],
+        excluded_features=[],
         dilation_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
         erosion_mask=cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
         output_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
@@ -176,6 +177,9 @@ if __name__ == '__main__':
 
     valid_data_predicate = ValidDataFractionPredicate(0.8)
     filter_task = SimpleFilterTask((FeatureType.MASK, 'IS_VALID'), valid_data_predicate)
+    # lpis_task = ModifyLPISTask('LPIS_2017')
+    # addStreamGREEN = AddStreamTemporalFeaturesTask(data_feature='GREEN')
+    # addStreamBLUE = AddStreamTemporalFeaturesTask(data_feature='BLUE')
 
     workflow = LinearWorkflow(
         load,
@@ -184,29 +188,33 @@ if __name__ == '__main__':
         filter_task,
         linear_interp,
         AddBaseFeatures(),
-        # segmentation,
-        addStreamNDVI,
-        addStreamEVI,
-        addStreamARVI,
-        addStreamSIPI,
-        addStreamSAVI,
-        addStreamNDWI,
-        RemoveUnwantedFeatures(),
+        segmentation,
+        # addStreamNDVI,
+        # addStreamEVI,
+        # addStreamARVI,
+        # addStreamSIPI,
+        # addStreamSAVI,
+        # addStreamNDWI,
+        # RemoveUnwantedFeatures(),
+        # lpis_task,
+        # addStreamGREEN,
+        # addStreamBLUE,
         save
     )
 
-    # workflow.execute(execution_args[1])
+    # for i,args in enumerate(execution_args):
+    #     workflow.execute(execution_args)
 
     start_time = time.time()
     executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
-    executor.run(workers=4, multiprocess=True)
-    #file = open('timing.txt', 'a')
+    executor.run(multiprocess=False)
+    # file = open('timing.txt', 'a')
     running = str(
-        dt.datetime.now()) + ' cloud mask, stream features NDVI, EVI, ARVI, SIPI, SAVI, NDWI, removal. Running time: {}\n'.format(
+        dt.datetime.now()) + ' cloud mask, edges Running time: {}\n'.format(
         time.time() - start_time)
     print(running)
-    #file.write(running)
-    #file.close()
+    # file.write(running)
+    # file.close()
     country = 'Slovenia'
     # country = 'Austria'
     year = 2017

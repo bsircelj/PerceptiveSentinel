@@ -39,7 +39,7 @@ class ExtractEdgesTask(EOTask):
             image_one = image[time]
             edge = self.one_edge(image_one, low_threshold, high_threshold, blur)
             all_edges[time] = edge
-        #eopatch.add_feature(FeatureType.MASK, feature_name + '_EDGE', all_edges[..., np.newaxis])
+        # eopatch.add_feature(FeatureType.MASK, feature_name + '_EDGE', all_edges[..., np.newaxis])
         return all_edges
 
     def one_edge(self, image, low_threshold, high_threshold, blur):
@@ -67,7 +67,7 @@ class ExtractEdgesTask(EOTask):
             mask = mask + mask_cur
 
         mask = (mask / t) > self.yearly_low_threshold
-        #eopatch.add_feature(FeatureType.MASK_TIMELESS, 'LOW_' + feature[1], mask[..., np.newaxis])
+        # eopatch.add_feature(FeatureType.MASK_TIMELESS, 'LOW_' + feature[1], mask[..., np.newaxis])
         return mask
 
     def normalize_feature(self, feature):
@@ -204,8 +204,8 @@ if __name__ == '__main__':
 
     no_patches = 7
 
-    path = '/home/beno/Documents/test'
-    # path = 'E:/Data/PerceptiveSentinel'
+    # path = '/home/beno/Documents/test'
+    path = 'E:/Data/PerceptiveSentinel'
 
     patch_location = path + '/Slovenia/'
     load = LoadFromDisk(patch_location)
@@ -216,15 +216,16 @@ if __name__ == '__main__':
     save = SaveToDisk(save_path_location, overwrite_permission=OverwritePermission.OVERWRITE_PATCH)
 
     execution_args = []
-    for id in range(no_patches):
+    # for id in range(no_patches):
+    for id in [0]:
         execution_args.append({
             load: {'eopatch_folder': 'eopatch_{}'.format(id)},
             save: {'eopatch_folder': 'eopatch_{}'.format(id)}
         })
 
-    execution_args={
-        load: {'eopatch_folder': 'eopatch_{}'.format(2)},
-        save: {'eopatch_folder': 'eopatch_{}'.format(2)}
+    execution_args = {
+        load: {'eopatch_folder': 'eopatch_{}'.format(0)},
+        save: {'eopatch_folder': 'eopatch_{}'.format(0)}
     }
 
     workflow = LinearWorkflow(
@@ -234,9 +235,9 @@ if __name__ == '__main__':
         save
     )
 
-    # workflow.execute(execution_args)
+    workflow.execute(execution_args)
 
-    executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
-    executor.run(workers=2, multiprocess=False)
+    # executor = EOExecutor(workflow, execution_args, save_logs=True, logs_folder='ExecutionLogs')
+    # executor.run(workers=2, multiprocess=False)
 
     # display()

@@ -591,8 +591,8 @@ class AddStreamTemporalFeaturesTask(EOTask):
 
         fst_der = np.where(up_mask[:-1])[0]
         snd_der = np.where(down_mask[1:])[0]
-        der_ind_max = -1
-        der_int_max = -1
+        der_ind_max = 0
+        der_int_max = 0
 
         for ind, (start, end) in enumerate(zip(fst_der, snd_der)):
 
@@ -603,11 +603,13 @@ class AddStreamTemporalFeaturesTask(EOTask):
             if abs(integral) >= abs(der_int_max):
                 der_int_max = integral
                 der_ind_max = ind
-
-        start_ind = fst_der[der_ind_max]
-        end_ind = snd_der[der_ind_max]
-
-        der_len = valid_dates[end_ind] - valid_dates[start_ind]
-        der_rate = (data[end_ind] - data[start_ind]) / der_len if der_len else 0
+        try:
+            start_ind = fst_der[der_ind_max]
+            end_ind = snd_der[der_ind_max]
+            der_len = valid_dates[end_ind] - valid_dates[start_ind]
+            der_rate = (data[end_ind] - data[start_ind]) / der_len if der_len else 0
+        except IndexError:
+            der_len = der_rate = start_ind = end_ind = 0
+            print("FAIL")
 
         return der_int_max, der_len, der_rate, (start_ind, end_ind)

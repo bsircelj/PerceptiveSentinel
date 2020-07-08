@@ -1,5 +1,24 @@
 import matplotlib.pyplot as plt
 import numpy as np
+new_color = {0: ('Not Farmland', 'xkcd:black'),
+             1: ('Grass', 'xkcd:green'),
+             2: ('Maize', 'xkcd:butter'),
+             3: ('Orchards', 'xkcd:red'),
+             4: ('Other', 'xkcd:white'),
+             5: ('Peas', 'xkcd:spring green'),
+             6: ('Potatoes', 'xkcd:poo'),
+             7: ('Pumpkins', 'xkcd:pumpkin'),
+             8: ('Soybean', 'xkcd:baby green'),
+             9: ('Summer cereals', 'xkcd:cool blue'),
+             10: ('Sun flower', 'xkcd:piss yellow'),
+             11: ('Vegetables', 'xkcd:bright pink'),
+             12: ('Vineyards', 'xkcd:grape'),
+             13: ('Winter cereals', 'xkcd:ice blue'),
+             14: ('Winter rape', 'xkcd:neon blue')}
+
+crop_g2 = dict()
+for k in new_color:
+    crop_g2[k] = new_color[k][0]
 
 normal_10k = {8.0: 715458, 7.0: 267291, 21.0: 186829, 6.0: 64277, 20.0: 47033, 10.0: 20509, 9.0: 18243,
               4.0: 16672, 14.0: 14660, 16.0: 14284, 22.0: 13211, 17.0: 10402, 5.0: 10261, 0.0: 9853, 13.0: 6822,
@@ -18,7 +37,8 @@ crop_names = {0: 'Beans', 1: 'Beets', 2: 'Buckwheat', 3: 'Fallow land', 4: 'Gras
               12: 'Poppy', 13: 'Potatoes', 14: 'Pumpkins', 15: 'Soft fruits', 16: 'Soybean', 17: 'Summer cereals',
               18: 'Sun flower', 19: 'Vegetables', 20: 'Vineyards', 21: 'Winter cereals', 22: 'Winter rape'}
 
-
+g2 = {4: 1830770, 12: 1562291, 1: 1125416, 2: 256666, 13: 205228, 3: 18578, 7: 17353, 14: 13713, 9: 11847, 8: 11844, 6: 10909, 11: 8051, 5: 2816, 10: 1092}
+g3 = {4: 3661382, 1: 2253431, 8: 875024, 9: 673194, 2: 515058, 11: 488227, 6: 461144, 13: 410877, 5: 164392, 12: 96859, 10: 65348, 3: 37200, 7: 34355, 14: 27812}
 def change_name(dic, dic2):
     named = dict()
     highest1 = dic[8.0]
@@ -35,11 +55,12 @@ def change_name(dic, dic2):
 
 
 if __name__ == '__main__':
-    named10 = change_name(normal_10k, enriched_15k)
+    # named10 = change_name(normal_10k, enriched_15k)
     # print('\n\nenriched')
     # named15 = change_name(enriched_15k)
 
-    D = named10
+    # D = named10
+    D = g3
     plt.bar(range(len(D)), list(D.values()), align='center')
     plt.xticks(range(len(D)), list(D.keys()), rotation='vertical')
     plt.show()

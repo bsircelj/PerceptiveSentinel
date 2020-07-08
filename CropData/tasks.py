@@ -2,8 +2,9 @@ import numpy as np
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Polygon
+import pyproj
 
-from sentinelhub import CRS, transform_bbox, GeopediaFeatureIterator
+from sentinelhub import CRS, GeopediaFeatureIterator
 from eolearn.core import EOTask, EOPatch, FeatureType
 from skimage.morphology import disk, binary_dilation, binary_erosion
 
@@ -147,7 +148,7 @@ class AddGeopediaVectorFeature(EOTask):
                 
     def execute(self, eopatch):
         # convert to 3857 CRS
-        bbox_3857 = transform_bbox(eopatch.bbox, CRS.POP_WEB)
+        bbox_3857 = eopatch.bbox.transform(CRS.POP_WEB)
         
         # get iterator over features
         gpd_iter = GeopediaFeatureIterator(layer=self.layer, bbox=bbox_3857)
@@ -155,7 +156,9 @@ class AddGeopediaVectorFeature(EOTask):
         features = list(gpd_iter)
         if len(features):
             gdf = gpd.GeoDataFrame.from_features(features)
-            gdf.crs = {'init': 'epsg:4326'}
+            # gdf.crs = {'init': 'epsg:4326'}
+            # gdf.crs = pyproj.CRS("EPSG:4326")
+            gdf.crs = 'EPSG:4326'
             # convert back to EOPatch CRS
             gdf = gdf.to_crs({'init': f'epsg:{eopatch.bbox.crs.value}'})
 
