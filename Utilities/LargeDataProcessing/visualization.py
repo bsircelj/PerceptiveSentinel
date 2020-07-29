@@ -10,6 +10,7 @@ from sentinelhub import geo_utils
 from scipy.ndimage import gaussian_filter
 import matplotlib.colors as colors
 import matplotlib.patches as mpatches
+from .doubly_logistic_approximation import DoublyLogisticApproximationTask
 
 
 def save_figure(plt, file_name):
@@ -85,21 +86,43 @@ handles, labels = create_legend(new_color)
 def display():
     # path = '/home/beno/Documents/test'
     # path = 'E:/Data/PerceptiveSentinel'
-    path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
-    patch_no = 578
+    # path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
+    path = 'D:/Users/Beno/PycharmProjects/eo-learn/features/eolearn/tests/TestInputs'
+    save_path = 'D:/Users/Beno/TestInputs'
+    # patch_no = 578
     # eopatch1 = EOPatch.load(path + '/Slovenia/eopatch_{}'.format(patch_no), lazy_loading=True)
     # eopatch = EOPatch.load(path + '/LPIS/eopatch_{}'.format(patch_no), lazy_loading=True)
-    eopatch = EOPatch.load(f'{path}/eopatch_398')
-    lpis = eopatch.mask_timeless['LPIS_2017_G2'].squeeze()
-    plt.figure()
-    plt.imshow(lpis, cmap=cmap, norm=norm)
-    plt.legend(handles, labels)
+    # eopatch = EOPatch.load(f'{path}/eopatch_398')
+    # lpis = eopatch.mask_timeless['LPIS_2017_G2'].squeeze
+    eopatch = EOPatch.load(f'{path}/TestPatch')
+    ndvi = eopatch.data['ndvi'].squeeze()
+    mask = eopatch.mask['IS_VALID'].squeeze()
+    # for i,t in enumerate(eopatch.timestamp):
+    #     plt.figure(str(t))
+    #     plt.subplot(121)
+    #     plt.imshow(ndvi[i])
+    #     plt.subplot(122)
+    #     plt.imshow(mask[i])
+    #     plt.show()
+    doubly = DoublyLogisticApproximationTask(feature='ndvi', mask_feature=(FeatureType.MASK, 'IS_VALID'))
+    eopatch = doubly.execute(eopatch)
+    eopatch.save(f'{save_path}/TestPatch')
+    logi = eopatch.
+
+    for x in range(20):
+        for y in range(20):
+            plt.subplot(211)
+            plt.plot(ndvi[:, x, y])
+            plt.subplot(212)
+            plt.plot(mask[:, x, y])
+            plt.show()
+
+    # plt.imshow(lpis, cmap=cmap, norm=norm)
+    # plt.legend(handles, labels)
 
     # plt.figure()
     # img = np.clip(eopatch1.data['BANDS'][10][..., [3, 2, 1]] * 3.5, 0, 1)
     # plt.imshow(img)
-
-    plt.show()
 
     # eopatch = EOPatch.load(path + '/Slovenia/eopatch_WCS')
     # img = eopatch.data['IW'][100][..., 1].squeeze()

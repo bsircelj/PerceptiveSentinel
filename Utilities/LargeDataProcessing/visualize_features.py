@@ -36,22 +36,22 @@ def display_rgb(patch_no, patches_path):
 
 
 if __name__ == '__main__':
-    patch_no = np.array([[398, 421, 433, 466],
+    patch_no = np.array([[398, 421, 443, 466],
                          [397, 420, 442, 465],
                          [396, 419, 441, 464],
                          [395, 418, 440, 463]])
-    # patches_path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
-    patches_path = 'D:/Users/Beno/Ljubljana2'
+    # patches_path = 'E:/Data/PerceptiveSentinel/SVN_Interpolated2'
+    patches_path = 'D:/Users/Beno/Ljubljana'
     feature_names = ['DEM', 'ARVI_max_mean_surf', 'ARVI_sd_val', 'NDVI_max_mean_len', 'NDVI_mean_val', 'NDVI_pos_len',
                      'SAVI_max_mean_feature', 'BLUE_max_mean_feature', 'GREEN_mean_val']
     class_feature = 'LPIS_2017_G2'
 
-    img_path = 'D:/Users/Beno/Images/Ljubljana'
+    img_path = 'D:/Users/Beno/Images/Ljubljana2'
     x_size, y_size = patch_no.shape
     i = 0
     for xp in range(x_size):
         for yp in range(y_size):
-            eopatch = EOPatch.load(path=f'{patches_path}/eopatch_{i}')
+            eopatch = EOPatch.load(path=f'{patches_path}/eopatch_{patch_no[xp][yp]}')
             img_path0 = f'{img_path}/patch_{i}'
             if not os.path.isdir(img_path0):
                 os.makedirs(img_path0)

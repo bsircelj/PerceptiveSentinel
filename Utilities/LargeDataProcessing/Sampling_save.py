@@ -7,14 +7,15 @@ import collections
 import time
 import datetime as dt
 import random
-import os
+import os.path as pth
 
 
 def sample_patches(path, no_patches, no_samples, class_feature, features, weak_classes=None, mask_feature=None,
                    samples_per_class=None,
                    debug=False, seed=None, class_frequency=False):
     """
-    :param path: Path to folder containing all patches
+    :param path: Path to folder containing all patches, folders need to be named eopatch_{number: 0 to no_patches-1}
+    :param no_patches: Total number of patches
     :param no_samples: Number of samples taken per patch
     :param class_feature: Name of feature that contains class number.
         The numbers in the array can be float or nan for no class
@@ -45,17 +46,17 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
     class_name = class_feature[1]
     sample_dict = []
 
-    #for patch_id in range(no_patches):
-    for name, _ in os.walk(patches_path)
+    for patch_id in range(no_patches):
         patch_id = 398
         path1 = '{}/eopatch_{}/mask_timeless/LPIS_2017.npy'.format(path, patch_id)
         path2 = '{}/eopatch_{}'.format('E:\\Data\\PerceptiveSentinel\\Slovenia_S1', patch_id)
-        if not os.path.exists(path1) or not os.path.exists(path2):
+        if not pth.exists(path1) or not pth.exists(path2):
             print('Patch {} missing.'.format(patch_id))
             continue
         print(patch_id)
         eopatch = EOPatch.load('{}/eopatch_{}'.format(path, patch_id), lazy_loading=True)
         _, height, width, _ = eopatch.data['BANDS'].shape
+        # height, width = 500, 500  # Were supposed to be 505 and 500, but INCLINATION feature has wrong dimensions
         mask = eopatch[mask_feature[0]][mask_feature[1]].squeeze()
         mask = mask[0:height, 0:width]
         no_samples = min(height * width, no_samples)

@@ -326,7 +326,8 @@ if __name__ == '__main__':
     dataset.sort_values(by='patch_no', inplace=True)
     no = dataset.shape[0]
     # no=10
-    base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
+    # all_base_names = ['ARVI', 'EVI', 'NDVI', 'NDWI', 'SIPI', 'SAVI', 'BLUE', 'GREEN', 'RED', 'NIR']
+    base_names = ['ARVI', 'NDVI', 'SAVI', 'BLUE', 'GREEN']
 
     suffix_name = ['_diff_diff', '_diff_max', '_diff_min', '_max_mean_feature', '_max_mean_len',
                    '_max_mean_surf',
@@ -342,13 +343,13 @@ if __name__ == '__main__':
         for s in suffix_name:
             dataset[b + s] = np.zeros(no)
 
-    base_names_s1 = ['VV', 'VH', 'VV_spring', 'VV_summer', 'VV_autumn', 'VV_winter', 'VH_spring', 'VH_summer',
-                     'VH_autumn', 'VH_winter']
-    suffix_name_s1 = ['_avg', '_max', '_min', '_std']
-
-    for b in base_names_s1:
-        for s in suffix_name_s1:
-            dataset[b + s] = np.zeros(no)
+    # base_names_s1 = ['VV', 'VH', 'VV_spring', 'VV_summer', 'VV_autumn', 'VV_winter', 'VH_spring', 'VH_summer',
+    #                  'VH_autumn', 'VH_winter']
+    # suffix_name_s1 = ['_avg', '_max', '_min', '_std']
+    #
+    # for b in base_names_s1:
+    #     for s in suffix_name_s1:
+    #         dataset[b + s] = np.zeros(no)
 
     # single_time = [20, 40, 60, 90, 150]
     # for b in ['VV', 'VH']:
@@ -443,45 +444,45 @@ if __name__ == '__main__':
             for keys in pix_features:
                 dataset[keys][x] = pix_features[keys]
 
-        # S1 features
-        vv = eopatch_s1.data['IW'][..., h, w, 0]
-        vh = eopatch_s1.data['IW'][..., h, w, 1]
-        vv_sig5 = gaussian_filter(vv, sigma=5)
-        vh_sig5 = gaussian_filter(vh, sigma=5)
-        winter, spring, summer, autumn = ([], [], [], [])
-        winter_vh, spring_vh, summer_vh, autumn_vh = ([], [], [], [])
-
-        for i, dt0 in enumerate(eopatch_s1.timestamp):
-            m = dt0.month
-            if 6 > m >= 3:
-                spring += [vv_sig5[i]]
-                spring_vh += [vh_sig5[i]]
-            elif 9 > m >= 6:
-                summer += [vv_sig5[i]]
-                summer_vh += [vh_sig5[i]]
-            elif 11 > m >= 9:
-                autumn += [vv_sig5]
-                autumn_vh += [vh_sig5[i]]
-            else:
-                winter += [vv_sig5[i]]
-                winter_vh += [vh_sig5[i]]
-
-        name_and = [('VV', vv_sig5),
-                    ('VH', vh_sig5),
-                    ('VV_spring', spring),
-                    ('VV_summer', summer),
-                    ('VV_autumn', autumn),
-                    ('VV_winter', winter),
-                    ('VH_spring', spring_vh),
-                    ('VH_summer', summer_vh),
-                    ('VH_autumn', autumn_vh),
-                    ('VH_winter', winter_vh)]
-
-        for name, data in name_and:
-            dataset[name + '_avg'][x] = np.average(data)
-            dataset[name + '_max'][x] = np.amax(data)
-            dataset[name + '_min'][x] = np.amin(data)
-            dataset[name + '_std'][x] = np.std(data)
+        # # S1 features
+        # vv = eopatch_s1.data['IW'][..., h, w, 0]
+        # vh = eopatch_s1.data['IW'][..., h, w, 1]
+        # vv_sig5 = gaussian_filter(vv, sigma=5)
+        # vh_sig5 = gaussian_filter(vh, sigma=5)
+        # winter, spring, summer, autumn = ([], [], [], [])
+        # winter_vh, spring_vh, summer_vh, autumn_vh = ([], [], [], [])
+        #
+        # for i, dt0 in enumerate(eopatch_s1.timestamp):
+        #     m = dt0.month
+        #     if 6 > m >= 3:
+        #         spring += [vv_sig5[i]]
+        #         spring_vh += [vh_sig5[i]]
+        #     elif 9 > m >= 6:
+        #         summer += [vv_sig5[i]]
+        #         summer_vh += [vh_sig5[i]]
+        #     elif 11 > m >= 9:
+        #         autumn += [vv_sig5]
+        #         autumn_vh += [vh_sig5[i]]
+        #     else:
+        #         winter += [vv_sig5[i]]
+        #         winter_vh += [vh_sig5[i]]
+        #
+        # name_and = [('VV', vv_sig5),
+        #             ('VH', vh_sig5),
+        #             ('VV_spring', spring),
+        #             ('VV_summer', summer),
+        #             ('VV_autumn', autumn),
+        #             ('VV_winter', winter),
+        #             ('VH_spring', spring_vh),
+        #             ('VH_summer', summer_vh),
+        #             ('VH_autumn', autumn_vh),
+        #             ('VH_winter', winter_vh)]
+        #
+        # for name, data in name_and:
+        #     dataset[name + '_avg'][x] = np.average(data)
+        #     dataset[name + '_max'][x] = np.amax(data)
+        #     dataset[name + '_min'][x] = np.amin(data)
+        #     dataset[name + '_std'][x] = np.std(data)
 
         # for single in single_time:
         #     dataset['VV' + str(single)][x] = vv_sig5[single]

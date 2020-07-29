@@ -88,8 +88,10 @@ def calculate_features(patch_no, patches_path, save_path):
     i = 0
     for xp in range(x_size):
         for yp in range(y_size):
-            print(f'___ Features {xp * 3 + yp} ____')
+            print(f'___ Patch {xp * 3 + yp} ____')
             eopatch = EOPatch.load(f'{patches_path}/eopatch_{patch_no[xp, yp]}')
+            t, h, w, b = eopatch.data['BANDS'].shape
+            eopatch.add_feature(FeatureType.MASK, 'IS_VALID', np.full((t, h, w, 1), True))
             base = AddBaseFeatures()
             eopatch = base.execute(eopatch)
 
@@ -171,8 +173,14 @@ def interpolation(patch_no, patches_path, save_path):
 
 
 if __name__ == '__main__':
-    patches_path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
-    save_path = 'E:/Data/PerceptiveSentinel/SVN_Interpolated2'
-    interpolation(np.array(range(1085)), patches_path, save_path)
+    patch_no = np.array([[398, 421, 443, 466],
+                         [397, 420, 442, 465],
+                         [396, 419, 441, 464],
+                         [395, 418, 440, 463]])
 
+    # patches_path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
+    patches_path = 'E:/Data/PerceptiveSentinel/SVN_Interpolated2'
+    save_path = 'D:/Users/Beno/Ljubljana'
+
+    calculate_features(patch_no, patches_path, save_path)
     # create_model('dt')

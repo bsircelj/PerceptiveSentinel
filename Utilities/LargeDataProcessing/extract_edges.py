@@ -1,9 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from eolearn.core import EOTask, LinearWorkflow, FeatureType, OverwritePermission, LoadFromDisk, SaveToDisk, EOExecutor
-
+from eolearn.core import EOTask, LinearWorkflow, FeatureType, OverwritePermission, LoadFromDisk, SaveToDisk
 import cv2
-from scipy.ndimage.measurements import label
 import os
 
 
@@ -39,7 +36,6 @@ class ExtractEdgesTask(EOTask):
             image_one = image[time]
             edge = self.one_edge(image_one, low_threshold, high_threshold, blur)
             all_edges[time] = edge
-        # eopatch.add_feature(FeatureType.MASK, feature_name + '_EDGE', all_edges[..., np.newaxis])
         return all_edges
 
     def one_edge(self, image, low_threshold, high_threshold, blur):
