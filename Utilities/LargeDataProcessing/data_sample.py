@@ -1,15 +1,10 @@
-"""Prepare subset of the data for modelling and evaluation.
-"""
 import collections
 import os
 import random
 import re
 import sys
 import time
-# from dotenv import find_dotenv, load_dotenv
-from pathlib import Path
 
-import click
 import numpy as np
 import pandas as pd
 from eolearn.core import EOExecutor, EOPatch, FeatureType, LinearWorkflow, \
@@ -18,6 +13,7 @@ from eolearn.geometry import PointSamplingTask
 from sklearn.utils import resample
 import os
 import datetime as dt
+import matplotlib.pyplot as plt
 
 
 class BalancedClassSampler:
@@ -26,28 +22,24 @@ class BalancedClassSampler:
     This is done by sampling on each patch the desired amount and then balancing the data based on the smallest class
     or amount. If the amount is provided and there are classes with less than that number of points, random
     point are duplicated to reach the necessary size.
-
-    It also supports additional sampling around specified weak classes.
     """
 
-    def __init__(self, class_feature, load_path, save_file, patches=None, samples_amount=0.1, valid_mask=None,
+    def __init__(self, class_feature, load_path, patches=None, samples_amount=0.1, valid_mask=None,
                  ignore_labels=None, features=None, weak_classes=None, search_radius=3,
                  samples_per_class=None, seed=None, class_frequency=False):
         """
         :param class_feature: Feature that contains class labels
-        :type class_feature: (FeatureType, string)
+        :type class_feature: (FeatureType, string) or string
         :param load_path: Path to folder containing all patches
         :type load_path: string
-        :param save_file: Location and name of file to where samples are saved
-        :type save_file: string
         :param patches: List of patch names or None for all patches in the directory
         :type patches: list[str]
         :param samples_amount: Number of samples taken per patch. If the number is on the interval [0...1] then that
-        percentage of all points is taken
+        percentage of all points is taken. If the value is 1 all eligible points are taken.
         :type samples_amount: float
         :param valid_mask: Feature that defines the area from where samples are
             taken, if None the whole image is used
-        :type valid_mask: (FeatureType, String) or None
+        :type valid_mask: (FeatureType, string), string or None
         :param ignore_labels: A list of label values that should not be sampled.
         :type ignore_labels: list of integers
         :param features: temporal Features to include in dataset for each pixel sampled
@@ -71,13 +63,15 @@ class BalancedClassSampler:
         """
         self.class_feature = next(FeatureParser(class_feature, default_feature_type=FeatureType.MASK_TIMELESS)())
         self.load_path = load_path
-        self.save_file = save_file
         self.patches = patches if patches else [name for name, _ in os.walk(load_path)]
         self.samples_amount = samples_amount
-        self.valid_mask = next(FeatureParser(valid_mask, default_feature_type=FeatureType.MASK_TIMELESS)())
+        self.valid_mask = next(
+            FeatureParser(valid_mask, default_feature_type=FeatureType.MASK_TIMELESS)()) if valid_mask else None
         self.ignore_labels = ignore_labels
-        self.features = FeatureParser(features, default_feature_type=FeatureType.DATA_TIMELESS)
-        self.columns = [class_feature[1]] + [x[1] for x in self.features] + ['patch_name', 'x', 'y']
+        self.features = FeatureParser(features, default_feature_type=FeatureType.DATA_TIMELESS) if features else None
+        self.columns = [self.class_feature[1]] + ['patch_name', 'x', 'y']
+        if features:
+            self.columns += [x[1] for x in self.features]
 
         self.samples_per_class = samples_per_class
         self.seed = random.seed(seed) if seed is not None else None
@@ -93,18 +87,17 @@ class BalancedClassSampler:
             eopatch = EOPatch.load(f'{self.load_path}/{patch_name}', lazy_loading=True)
 
             height, width, _ = eopatch[self.class_feature].shape
-            mask = eopatch[self.valid_mask].squeeze()
+            mask = eopatch[self.valid_mask].squeeze() if self.valid_mask else None
             total_points = height * width
-            no_samples = self.samples_amount if self.samples_amount >= 1 else total_points * self.samples_amount
+            no_samples = self.samples_amount if self.samples_amount > 1 else int(total_points * self.samples_amount)
             no_samples = min(total_points, no_samples)
 
             # Finds all the pixels which are not masked
             subsample_id = []
-            for h in range(height):
-                for w in range(width):
-                    # Skip pixels with NaNs and masked pixels.
-                    if mask is None or mask[h][w] == 1:
-                        subsample_id.append((h, w))
+            for loc_h in range(height):
+                for loc_w in range(width):
+                    if mask is not None or mask[loc_h][loc_w]:
+                        subsample_id.append((loc_h, loc_w))
 
             # First sampling
             subsample_id = random.sample(
@@ -113,18 +106,21 @@ class BalancedClassSampler:
             )
             # print(f'Actual patch sample size: {len(subsample_id)}')
 
-            for h, w in subsample_id:
-                class_value = eopatch[self.class_feature][h][w][0]
-                if class_value in self.ignore_labels:
+            for loc_h, loc_w in subsample_id:
+                class_value = eopatch[self.class_feature][loc_h][loc_w][0]
+                if self.ignore_labels and class_value in self.ignore_labels:
                     continue
 
-                array_for_dict = [(self.class_feature[1], class_value)] \
-                                 + [(f[1], float(eopatch[f[0]][f[1]][h][w])) for f in self.features] \
-                                 + [('patch_name', patch_name), ('x', w), ('y', h)]
+                array_for_dict = [(self.class_feature[1], class_value)] + [('patch_name', patch_name), ('x', loc_w),
+                                                                           ('y', loc_h)]
+                if self.features:
+                    array_for_dict += [(f[1], float(eopatch[f][loc_h][loc_w])) for f in self.features]
 
                 sample_dict.append(dict(array_for_dict))
 
-                sample_dict = self.local_enrichment(class_value, height, width, eopatch, patch_name, sample_dict)
+                if self.weak_classes and self.search_radius is not 0:
+                    sample_dict = self.local_enrichment(class_value, loc_h, loc_w, height,
+                                                        width, eopatch, patch_name, sample_dict)
 
         df = pd.DataFrame(sample_dict, columns=self.columns)
         df.dropna(axis=0, inplace=True)
@@ -151,98 +147,47 @@ class BalancedClassSampler:
             )
             # print(f'Actual sample size per class: {len(nd.index)}')
             df_downsampled = df_downsampled.append(nd)
-        # to file: class_dictionary
+        # df_downsampled.to_csv(self.save_file, index=False)
+        return df_downsampled, dict(class_dictionary)
 
-        return df_downsampled
+    def local_enrichment(self, class_value, loc_h, loc_w, height, width, eopatch, patch_name, sample_dict):
 
-    def local_enrichment(self, class_value, height, width, eopatch, patch_name, sample_dict):
         # Enrichment
         if class_value in self.weak_classes:
             neighbours = list(range(-self.search_radius, self.search_radius + 1))
             for x in neighbours:
                 for y in neighbours:
                     if x != 0 or y != 0:
-                        h0 = h + x
-                        w0 = w + y
+                        search_h = loc_h + x
+                        search_w = loc_w + y
                         max_h, max_w = height, width
-                        if h0 >= max_h or w0 >= max_w \
-                                or h0 <= 0 or w0 <= 0:
+                        if search_h >= max_h or search_w >= max_w \
+                                or search_h <= 0 or search_w <= 0:
                             continue
 
-                        val = eopatch[self.class_feature][h0][w0][0]
+                        val = eopatch[self.class_feature][search_h][search_w][0]
                         if val in self.weak_classes:
                             array_for_dict = [(self.class_feature[1], val)] \
-                                             + [(f[1], float(eopatch[f[0]][f[1]][h0][w0])) for f in
-                                                self.features] \
-                                             + [('patch_no', patch_name), ('x', w0), ('y', h0)]
+                                             + [('patch_name', patch_name), ('x', search_w), ('y', search_h)]
+                            if self.features:
+                                array_for_dict += [(f[1], float(eopatch[f][search_h][search_w])) for f in self.features]
                             array_for_dict = dict(array_for_dict)
                             if array_for_dict not in sample_dict:
                                 sample_dict.append(dict(array_for_dict))
         return sample_dict
 
 
-def get_patches(path, n=0):
-    """Get selected number of patch IDs from given directory path.
-    If number is not provided, i.e. is zero, all patch IDs are returned.
-
-    :param path: Directory path where patches are
-    :type path: Path
-    :param n: Number of patch IDs to retrieve, defaults to 0
-    :type n: int, optional
-    :return: List of patch IDs
-    :rtype: list[int]
-    """
-    patches = [patch.name for patch in path.glob('eopatch_*')]
-    ids = []
-
-    for patch in patches:
-        match = re.match(r'^eopatch_(\d+)$', patch)
-        if match:
-            ids.append(int(match.group(1)))
-
-    ids.sort()
-    return random.sample(ids, n) if n else ids
-
-
 if __name__ == '__main__':
-    input_dir = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches/'
-    start_time = time.time()
-
-    samples, class_dict = sample_patches(
-        path=input_dir,
-        patches=list(range(1085)),
-        no_samples=20000,
-        class_feature=(
-            FeatureType.MASK_TIMELESS,
-            'LPIS_2017_G2'
-        ),
-        mask_feature=(FeatureType.MASK_TIMELESS, 'EDGES_INV'),
-        features=[],
-        weak_classes=[11, 5, 10, 6, 8, 9],
-        debug=True,
-        seed=None,
-        class_frequency=True
-    )
-    sample_time = time.time() - start_time
-    samples_path = 'D:/Samples/'
-    filename = ''
-    i = 0
-    while True:
-        filename = 'g2_samples' + str(i)
-        if ospath.exists(samples_path + filename + '.csv'):
-            i += 1
-        else:
-            break
-
-    result = 'Class sample size: {0}. Sampling time {1}'.format(
-        int(samples['LPIS_2017_G2'].size / pd.unique(samples['LPIS_2017_G2']).size), sample_time)
-    print(result)
+    class_feature = 'LPIS_2017_G2'
+    load_path = 'E:/Data/PerceptiveSentinel/SVN/2017/processed/patches'
+    patches = [f'eopatch_{x}' for x in range(500, 506)]
+    seed = 1234
+    sampling = BalancedClassSampler(class_feature=class_feature,
+                                    load_path=load_path,
+                                    patches=patches,
+                                    samples_amount=0.3,
+                                    seed=1234,
+                                    valid_mask='EDGES_INV',
+                                    weak_classes=list(range(5, 13)))
+    class_dict = sampling()
     print(class_dict)
-    file = open('timing.txt', 'a')
-    info = ' no_patches ' + str(1085) + ' samples_per_patch: ' + str(10000)
-    dictionary = str(class_dict)
-    file.write(
-        '\n\n' + str(dt.datetime.now()) + ' SAMPLING ' + filename + ' ' + result + info + '\n' + dictionary + '\n')
-    file.close()
-
-    samples.to_csv(samples_path + filename + '.csv')

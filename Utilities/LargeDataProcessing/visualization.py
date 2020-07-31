@@ -107,7 +107,6 @@ def display():
     doubly = DoublyLogisticApproximationTask(feature='ndvi', mask_feature=(FeatureType.MASK, 'IS_VALID'))
     eopatch = doubly.execute(eopatch)
     eopatch.save(f'{save_path}/TestPatch')
-    logi = eopatch.
 
     for x in range(20):
         for y in range(20):

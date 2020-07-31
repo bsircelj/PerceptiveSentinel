@@ -46,7 +46,7 @@ def sample_patches(path, no_patches, no_samples, class_feature, features, weak_c
     sample_dict = []
 
     #for patch_id in range(no_patches):
-    for name, _ in os.walk(patches_path)
+    for name, _ in os.walk(patches_path):
         patch_id = 398
         path1 = '{}/eopatch_{}/mask_timeless/LPIS_2017.npy'.format(path, patch_id)
         path2 = '{}/eopatch_{}'.format('E:\\Data\\PerceptiveSentinel\\Slovenia_S1', patch_id)
