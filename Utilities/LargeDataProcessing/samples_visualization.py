@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from data_sample import BalancedClassSampler
-from eolearn.core import EOTask, EOPatch
+# from sampling import BalancedClassSampler
+from eolearn.core import EOTask, EOPatch, FeatureType
 import random
 
 
@@ -87,7 +87,7 @@ def change_name(dic, dic2):
 
 
 def example_test():
-    # test_patch = 'D:/Users/Beno/PycharmProjects/eo-learn/example_data'
+    test_patch = 'D:/Users/Beno/PycharmProjects/eo-learn/example_data'
     save_file = 'D:/Samples/example.csv'
 
     # sampling = BalancedClassSampler(class_feature='LULC',
@@ -98,33 +98,40 @@ def example_test():
     #                                 valid_mask='RANDOM_UINT8',
     #                                 weak_classes=None)
 
-    test_patch = 'D:/Users/Beno/PycharmProjects/eo-learn/features/eolearn/tests/TestInputs'
-    sampling = BalancedClassSampler(class_feature='LULC',
-                                    load_path=test_patch,
-                                    patches=['TestPatch'],
-                                    samples_amount=0.1,
-                                    valid_mask='mask',
-                                    ignore_labels=None,
-                                    features=None,
-                                    weak_classes=None,
-                                    search_radius=3,
-                                    samples_per_class=None,
-                                    seed=None,
-                                    class_frequency=False)
+    # test_patch = 'D:/Users/Beno/PycharmProjects/eo-learn/features/eolearn/tests/TestInputs'
+    # sampling = BalancedClassSampler(class_feature='LULC',
+    #                                 folder='../../../example_data',
+    #                                 samples_amount=0.1,
+    #                                 valid_mask='EDGES_INV',
+    #                                 ignore_labels=8,
+    #                                 features={FeatureType.DATA_TIMELESS: ['DEM', 'MAX_NDVI']},
+    #                                 weak_classes=1,
+    #                                 search_radius=3,
+    #                                 samples_per_class=5,
+    #                                 seed=123)
 
-    samples, result = sampling()
-    # samples.to_csv(save_file)
-    plt.figure(figsize=(18, 6))
-    plt.suptitle(len(samples.index))
-    plt.subplot(131)
-    eopatch = EOPatch.load(f'{test_patch}/TestPatch')
+    # sampling = BalancedClassSampler(class_feature='LULC',
+    #                                 patches='../../../example_data/TestEOPatch',
+    #                                 seed=321)
+    #
+    # samples, result = sampling()
+    # print(samples)
+    # print(samples.iloc[1, 2])
+    # print(samples.iloc[5, 0])
+    # print(result)
+    # # samples.to_csv(save_file)
+    # plt.figure(figsize=(18, 6))
+    # plt.suptitle(len(samples.index))
+    # plt.subplot(131)
+    eopatch = EOPatch.load(f'{test_patch}/TestEOPatch')
+    print(eopatch)
     # img = np.clip(eopatch.data['BANDS-S2-L1C'][4][..., [3, 2, 1]] * 3.5, 0, 1)
     # plt.imshow(img)
     # for index, row in samples.iterrows():
     #     x = row['x']
     #     y = row['y']
     #     plt.scatter(x, y, color='r')
-    plt.imshow(eopatch.mask_timeless['RANDOM_UINT8'])
+    plt.imshow(eopatch.mask_timeless['EDGES_INV'].squeeze(), cmap='gray')
 
     plt.subplot(132)
     lulc = eopatch.mask_timeless['LULC'].squeeze()
@@ -151,6 +158,5 @@ def draw_histogram(distribution):
 
 
 if __name__ == '__main__':
-    while True:
-        dist = example_test()
-        draw_histogram(dist)
+    dist = example_test()
+    draw_histogram(dist)
